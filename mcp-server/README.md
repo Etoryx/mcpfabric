@@ -24,7 +24,7 @@ MCPFABRIC_URL=http://127.0.0.1:25599 MCPFABRIC_TOKEN=<token> node dist/index.js
 | Variable               | Default                  | Meaning                                        |
 |------------------------|--------------------------|------------------------------------------------|
 | `MCPFABRIC_URL`        | `http://127.0.0.1:25599` | In-game bridge base URL.                        |
-| `MCPFABRIC_TOKEN`      | —                        | Bearer token printed by the mod on startup.     |
+| `MCPFABRIC_TOKEN`      | —                        | Bearer token from `config/mcpfabric.config.json`. |
 | `MCPFABRIC_TIMEOUT_MS` | `15000`                  | Per-call timeout.                               |
 | `MCPFABRIC_TRANSPORT`  | `stdio`                  | `stdio` (default) or `http`.                    |
 | `MCPFABRIC_HTTP_PORT`  | `25600`                  | Port for the streamable-HTTP transport (`/mcp`).|

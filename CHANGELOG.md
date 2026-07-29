@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- A production-ready project icon for Fabric metadata, Modrinth, and GitHub presentation.
+- Repository community files and a canonical Modrinth listing guide.
+
+### Changed
+- Project links now point to the canonical `Etoryx/mcpfabric` repository.
+- GitHub Actions are pinned to immutable commit SHAs and release publishing fails closed when the
+  Modrinth token is unavailable.
+- The MCP server lockfile version now matches the package version.
+- The MCP SDK and vulnerable transitive packages were updated; `npm audit` reports zero known
+  vulnerabilities.
+
+### Security
+- The bridge bearer token is no longer printed to logs; read it from
+  `config/mcpfabric.config.json`.
+
 ## [0.2.0] - 2026-06-19
 
 ### Added

@@ -93,8 +93,13 @@ public class McpFabric implements ModInitializer {
 			LOGGER.error("[mcpfabric] failed to start HTTP bridge on {}:{}", config.host, config.port, e);
 		}
 
-		LOGGER.info("[mcpfabric] ready — bridge http://{}:{}  token={}", config.host, config.port,
-				config.requireAuth ? config.token : "(auth disabled)");
+		if (config.requireAuth) {
+			LOGGER.info("[mcpfabric] ready — bridge http://{}:{} (token: {})", config.host, config.port,
+					config.source);
+		} else {
+			LOGGER.warn("[mcpfabric] ready — bridge http://{}:{} (authentication disabled)", config.host,
+					config.port);
+		}
 
 		ServerLifecycleEvents.SERVER_STOPPING.register(server -> {
 			// Keep the bridge up across integrated-server restarts on the client; only stop it on a

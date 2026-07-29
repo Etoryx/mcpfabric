@@ -9,7 +9,7 @@ mod exposes this through a local HTTP bridge.
 By design, the bridge:
 
 - binds to **`127.0.0.1` only**, and
-- requires a **bearer token** (printed once in the log and stored in `config/mcpfabric.config.json`).
+- requires a **bearer token** stored in `config/mcpfabric.config.json` and never printed to logs.
 
 Treat the token like a password. Anyone who can reach the bridge and present the token can do
 anything an operator can do. Do **not** expose the bridge to other interfaces or forward the port
@@ -28,7 +28,7 @@ declared in `settings.gradle`. Older builds are not back-patched.
 
 Please report security issues **privately** — do not open a public issue for anything exploitable.
 
-- Use GitHub's [private vulnerability reporting](https://github.com/denfry/mcpfabric/security/advisories/new)
+- Use GitHub's [private vulnerability reporting](https://github.com/Etoryx/mcpfabric/security/advisories/new)
   ("Report a vulnerability"), or
 - email the maintainer at the address on their GitHub profile.
 

@@ -12,8 +12,8 @@ import java.util.UUID;
 
 /**
  * Persistent configuration for the bridge, stored at {@code config/mcpfabric.config.json}.
- * An auth token is generated on first run and printed to the log so it can be copied into the
- * MCP server's {@code MCPFABRIC_TOKEN}.
+ * An auth token is generated on first run and remains in the config file so it does not leak into
+ * logs. Copy it into the MCP server's {@code MCPFABRIC_TOKEN} environment variable.
  */
 public final class McpConfig {
 	private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();

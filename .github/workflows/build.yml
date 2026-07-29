@@ -14,10 +14,10 @@ jobs:
     name: Build mod (all versions)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDKs (21 for 1.21.x, 25 for 26.x)
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5
         with:
           distribution: temurin
           java-version: |
@@ -25,7 +25,9 @@ jobs:
             25
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@90ddb51e90a5fd9ba75f40cf85156b7b41bf76a3 # v6
+        with:
+          cache-read-only: ${{ github.event_name == 'pull_request' }}
 
       - name: Build every supported Minecraft version
         # The daemon runs on JDK 25 (last setup-java entry); tell Gradle where both JDKs live so the
@@ -33,7 +35,7 @@ jobs:
         run: ./gradlew chiseledBuild --stacktrace -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
       - name: Upload jars
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7
         with:
           name: mcpfabric-jars
           path: |
@@ -48,9 +50,9 @@ jobs:
       run:
         working-directory: mcp-server
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - uses: actions/setup-node@v6
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
         with:
           node-version: 20
           cache: npm

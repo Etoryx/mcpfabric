@@ -103,9 +103,8 @@ publishing {
 // `modrinth` task across all supported Minecraft versions; each node uploads its own jar as a
 // separate Modrinth version (e.g. 0.2.0+1.21.8), targeting exactly the version(s) it was built for.
 //
-// Before the first real publish (see docs/RELEASING.md):
-//   1. Create the project on https://modrinth.com and put its ID or slug in `modrinth_id`.
-//   2. Expose a write-scoped token as the MODRINTH_TOKEN env var (a GitHub Actions secret in CI).
+// The public project is https://modrinth.com/mod/mcpfabric (`modrinth_id=eA63YgUh`).
+// Expose a write-scoped token as the MODRINTH_TOKEN env var (a GitHub Actions secret in CI).
 // Without MODRINTH_TOKEN the task runs in debug mode: it builds and validates but uploads nothing.
 
 // Pull the section for the current mod version out of CHANGELOG.md (Keep a Changelog format), so the
@@ -134,7 +133,7 @@ def modrinthToken = System.getenv('MODRINTH_TOKEN')
 
 modrinth {
 	token.set(modrinthToken ?: '')
-	projectId.set((project.findProperty('modrinth_id') ?: 'CHANGEME') as String)
+	projectId.set(project.property('modrinth_id') as String)
 
 	versionNumber.set(version as String)                                  // 0.2.0+1.21.8 — unique per node
 	versionName.set("${project.archives_base_name} ${version}" as String)

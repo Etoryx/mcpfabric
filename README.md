@@ -1,15 +1,52 @@
-# mcpfabric
+<div align="center">
+  <img src="docs/assets/mcpfabric-icon-512.png" alt="MCP Fabric grass block, AI network, and bridge emblem" width="180" height="180">
 
-**Full observation and control of Minecraft (Fabric) for AI agents via the [Model Context Protocol](https://modelcontextprotocol.io).**
+# MCP Fabric — AI control for Minecraft
 
-`mcpfabric` has two parts:
+**Let Claude and other MCP clients see, understand, and play Minecraft through 50+ tools.**
 
-1. **A Fabric mod** that embeds a local HTTP bridge inside Minecraft and exposes read & control
-   access to the game. It works universally: on the **client** it drives your own player as a bot
-   and sees everything the client sees (including screenshots); on a **dedicated/integrated server**
-   it acts as an operator over the world, entities, and all players.
-2. **An MCP server** (TypeScript) that connects to the mod's bridge over HTTP and publishes ~50
-   tools, so any MCP client (Claude Desktop, Claude Code, etc.) can observe and control the game.
+[![Build](https://github.com/Etoryx/mcpfabric/actions/workflows/build.yml/badge.svg)](https://github.com/Etoryx/mcpfabric/actions/workflows/build.yml)
+[![Modrinth downloads](https://img.shields.io/modrinth/dt/eA63YgUh?logo=modrinth&label=Modrinth)](https://modrinth.com/mod/mcpfabric)
+[![GitHub stars](https://img.shields.io/github/stars/Etoryx/mcpfabric?logo=github&style=flat)](https://github.com/Etoryx/mcpfabric/stargazers)
+[![License: MIT](https://img.shields.io/github/license/Etoryx/mcpfabric)](LICENSE)
+
+[Download on Modrinth](https://modrinth.com/mod/mcpfabric) ·
+[Installation](#quick-start) ·
+[Tools](#tools-50) ·
+[Security](SECURITY.md) ·
+[Telemetry](docs/TELEMETRY.md) ·
+[Contributing](CONTRIBUTING.md)
+</div>
+
+MCP Fabric is a local-first Fabric mod and Model Context Protocol server that gives AI agents
+structured observation and controlled access to Minecraft. It works on both the client and
+dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.2.
+
+- **Play through natural language:** move, look, navigate, mine, build, fight, and use inventory.
+- **See the game:** inspect blocks, entities, players, status, chat, events, and screenshots.
+- **Operate servers:** run commands, edit worlds, manage entities, and administer players.
+- **Bring your own AI:** works with Claude Desktop, Claude Code, and other MCP-compatible hosts.
+- **Stay local by default:** loopback-only HTTP bridge, bearer authentication, and capability gates.
+- **No hidden telemetry:** the current Fabric release sends no usage analytics.
+
+## Quick start
+
+1. Install [Fabric Loader](https://fabricmc.net/use/installer/) and
+   [Fabric API](https://modrinth.com/mod/fabric-api).
+2. Download the jar matching your Minecraft version from
+   [Modrinth](https://modrinth.com/mod/mcpfabric/versions) and place it in `mods/`.
+3. Launch Minecraft once, then copy `token` from `config/mcpfabric.config.json`.
+4. Build the MCP server with `cd mcp-server && npm ci && npm run build`.
+5. Add it to your MCP client using the [ready-to-copy examples](#3-connect-to-claude).
+
+> [!CAUTION]
+> MCP Fabric can grant an AI operator-level control. Keep the bridge on `127.0.0.1`, keep
+> authentication enabled, and disable capability groups you do not need.
+
+## How it works
+
+`mcpfabric` has two parts: a Fabric mod that embeds a local HTTP bridge in Minecraft, and a small
+TypeScript MCP server that exposes the bridge as discoverable tools.
 
 ```
 Claude / any MCP client
@@ -81,13 +118,14 @@ Drop the jar for your Minecraft version, together with **Fabric API**, into your
 - **Server** (AI as admin): the `mods/` folder of your dedicated Fabric server.
 - Both sides at once is fine.
 
-On first launch the mod creates `config/mcpfabric.config.json` and logs a line like:
+On first launch the mod creates `config/mcpfabric.config.json` and logs where to find the token:
 
 ```
-[mcpfabric] ready — bridge http://127.0.0.1:25599  token=ab12cd...
+[mcpfabric] ready — bridge http://127.0.0.1:25599 (token: .../config/mcpfabric.config.json)
 ```
 
-Copy the `token` — the MCP server needs it.
+Copy the `token` value from that file — the MCP server needs it. The token is intentionally not
+printed to logs.
 
 ### Mod config (`config/mcpfabric.config.json`)
 

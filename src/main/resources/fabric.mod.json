@@ -8,9 +8,11 @@
 		"dabinayo"
 	],
 	"contact": {
-		"homepage": "https://github.com/denfry/mcpfabric",
-		"sources": "https://github.com/denfry/mcpfabric"
+		"homepage": "https://modrinth.com/mod/mcpfabric",
+		"issues": "https://github.com/Etoryx/mcpfabric/issues",
+		"sources": "https://github.com/Etoryx/mcpfabric"
 	},
+	"icon": "assets/mcpfabric/icon.png",
 	"license": "MIT",
 	"environment": "*",
 	"entrypoints": {
