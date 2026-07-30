@@ -23,20 +23,19 @@ by their Minecraft version get the correct jar.
 
 You only do this once, before the first published release.
 
-### 1. Create the Modrinth project
+### 1. Verify the Modrinth project
 
-1. Go to <https://modrinth.com> → **Create a project** (type: **Mod**, loader: **Fabric**).
-2. Fill in the name, summary, description/body, license (**MIT**), and an icon. The publish step
-   does **not** sync the project page — set the body and icon on the website.
-3. Add **Fabric API** as a required dependency on the project (the publish step also declares it
-   per version, but setting it on the project is good hygiene).
-4. Copy the project **ID** (Settings → General) or its **slug** from the URL.
+The project already exists at <https://modrinth.com/mod/mcpfabric> with ID `eA63YgUh`.
 
-Put it in [`gradle.properties`](../gradle.properties):
+Confirm that [`gradle.properties`](../gradle.properties) contains:
 
 ```properties
-modrinth_id=YOUR_ID_OR_SLUG   # replace CHANGEME
+modrinth_id=eA63YgUh
 ```
+
+Keep the public project metadata aligned with [`MODRINTH.md`](MODRINTH.md), upload
+[`mcpfabric-icon-512.png`](assets/mcpfabric-icon-512.png) as the icon, and add Fabric API as a
+required dependency.
 
 ### 2. Create a Modrinth token
 
@@ -51,9 +50,8 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 | ---------------- | ------------------------- |
 | `MODRINTH_TOKEN` | the PAT created in step 2 |
 
-> Until both `modrinth_id` and `MODRINTH_TOKEN` are set, the release still runs but Modrinth upload
-> is skipped (the Gradle task runs in **debug mode**: it builds and validates, uploads nothing).
-> The GitHub Release with jars is still created.
+> The release workflow fails closed when `MODRINTH_TOKEN` or `modrinth_id` is missing. It will not
+> create a GitHub-only partial release by accident.
 
 ## Cutting a release
 

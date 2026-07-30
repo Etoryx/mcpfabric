@@ -7,7 +7,7 @@
 export interface ServerConfig {
   /** Base URL of the in-game HTTP bridge exposed by the Fabric mod. */
   bridgeUrl: string;
-  /** Bearer token that must match the token printed by the mod on startup. */
+  /** Bearer token from the mod's config/mcpfabric.config.json file. */
   token: string | undefined;
   /** Per-request timeout for bridge calls, in milliseconds. */
   timeoutMs: number;

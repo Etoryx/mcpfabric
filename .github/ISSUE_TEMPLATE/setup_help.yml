@@ -1,0 +1,43 @@
+name: Setup or usage help
+description: Ask for help installing the mod, connecting an MCP client, or using a tool
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please check the README first. Never paste your bridge token or full config file.
+  - type: dropdown
+    id: component
+    attributes:
+      label: Where are you stuck?
+      options:
+        - Installing the Fabric mod
+        - Building or running the MCP server
+        - Connecting an MCP client
+        - Calling a tool
+        - Something else
+    validations:
+      required: true
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: Include Minecraft, Fabric Loader, Fabric API, mcpfabric, Node.js, and your MCP client.
+      placeholder: "Minecraft 1.21.8, Loader 0.19.3, mcpfabric 0.2.0, Node 20, Claude Desktop"
+    validations:
+      required: true
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What did you try?
+      description: Include the exact command or configuration shape, with all tokens and private paths redacted.
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Relevant output
+      description: Paste the smallest relevant error or log excerpt. Redact secrets.
+      render: text
+    validations:
+      required: false

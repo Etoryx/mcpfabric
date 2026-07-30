@@ -44,6 +44,7 @@ public final class BotController {
 	private double lastDist = Double.MAX_VALUE;
 	private int stuckTicks;
 	private volatile String navState = "idle";
+	private boolean drivingKeys;
 
 	// --- public control surface (called from handlers, on the render thread) ----------------
 
@@ -128,7 +129,17 @@ public final class BotController {
 			if (path != null) {
 				steer(p);
 			}
-			applyKeys(mc.options);
+			boolean driving = fwd || back || left || right || jumpHeld || sneak || sprint || jumpOnceTicks > 0 || path != null;
+			if (driving) {
+				applyKeys(mc.options);
+				drivingKeys = true;
+			} else if (drivingKeys) {
+				// Release any keys the bot forced down instead of continuing to stomp on them
+				// every tick — without this, real keyboard input can never move the player
+				// again once the bot has issued any movement command.
+				releaseKeys(mc.options);
+				drivingKeys = false;
+			}
 			if (jumpOnceTicks > 0) jumpOnceTicks--;
 			tickMining(mc);
 		}
@@ -142,6 +153,16 @@ public final class BotController {
 		o.keyShift.setDown(sneak);
 		o.keySprint.setDown(sprint);
 		o.keyJump.setDown(jumpHeld || jumpOnceTicks > 0);
+	}
+
+	private void releaseKeys(Options o) {
+		o.keyUp.setDown(false);
+		o.keyDown.setDown(false);
+		o.keyLeft.setDown(false);
+		o.keyRight.setDown(false);
+		o.keyShift.setDown(false);
+		o.keySprint.setDown(false);
+		o.keyJump.setDown(false);
 	}
 
 	private void tickMining(Minecraft mc) {
