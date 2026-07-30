@@ -6,6 +6,14 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-07-30
+
+### Fixed
+- The bot's per-tick input driver forced movement key state every client tick, even when idle,
+  permanently overriding the player's own WASD/jump/sneak/sprint input once the mod started
+  ticking. Keys are now only forced while a movement command or navigation is active, and
+  released back to the keyboard once it stops.
+
 ### Added
 - A production-ready project icon for Fabric metadata, Modrinth, and GitHub presentation.
 - Repository community files and a canonical Modrinth listing guide.
