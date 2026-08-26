@@ -13,9 +13,7 @@ import net.minecraft.server.MinecraftServer;
 import java.util.List;
 
 /**
- * Chat handlers. {@code chat.getRecent} is environment-agnostic (reads the event ring buffer).
- * {@code chat.send} is registered server-side here (broadcast) and client-side in the client
- * entrypoint (send as the local player) — only one side registers it at runtime.
+ * Chat and interrupt-driven event waiting handlers.
  */
 public final class ChatHandlers {
 	private ChatHandlers() {}
@@ -36,6 +34,72 @@ public final class ChatHandlers {
 			o.addProperty("lastId", events.lastId());
 			return o;
 		});
+
+		router.register("chat.waitFor", ctx -> {
+			long timeoutMs = resolveTimeoutMs(ctx);
+			long sinceId = ctx.optLong("sinceId", events.lastId());
+			return waitForEvents(events, java.util.Set.of("chat", "system_message"), sinceId, timeoutMs);
+		});
+
+		router.register("events.waitFor", ctx -> {
+			long timeoutMs = resolveTimeoutMs(ctx);
+			long sinceId = ctx.optLong("sinceId", events.lastId());
+			java.util.List<String> typesList = ctx.getStringList("types");
+			java.util.Set<String> types = !typesList.isEmpty() ? new java.util.HashSet<>(typesList) : null;
+			return waitForEvents(events, types, sinceId, timeoutMs);
+		});
+	}
+
+	private static long resolveTimeoutMs(dev.mcpfabric.bridge.RpcRouter.RpcContext ctx) {
+		// Accept both timeoutMs (direct) and timeoutSeconds (from MCP tools.ts schema)
+		long rawMs;
+		if (ctx.has("timeoutMs")) {
+			rawMs = ctx.optLong("timeoutMs", 30000L);
+		} else if (ctx.has("timeoutSeconds")) {
+			rawMs = ctx.optLong("timeoutSeconds", 30L) * 1000L;
+		} else {
+			rawMs = 30000L;
+		}
+		return Math.min(Math.max(rawMs, 1000L), 120000L);
+	}
+
+	private static JsonObject waitForEvents(EventBus events, java.util.Set<String> types, long sinceId, long timeoutMs) {
+		com.google.gson.JsonArray existing = events.recent(1, types, sinceId);
+		if (!existing.isEmpty()) {
+			JsonObject o = new JsonObject();
+			o.addProperty("received", true);
+			o.add("event", existing.get(0));
+			return o;
+		}
+
+		dev.mcpfabric.bridge.SseHub.Subscriber sub = events.getSseHub().register(types);
+		try {
+			long deadline = System.currentTimeMillis() + timeoutMs;
+			while (System.currentTimeMillis() < deadline) {
+				long remaining = Math.max(1L, deadline - System.currentTimeMillis());
+				String raw = sub.poll(remaining);
+				if (raw != null) {
+					JsonObject eventObj = dev.mcpfabric.bridge.Json.GSON.fromJson(raw, JsonObject.class);
+					long id = eventObj.has("id") ? eventObj.get("id").getAsLong() : 0L;
+					if (id > sinceId) {
+						JsonObject o = new JsonObject();
+						o.addProperty("received", true);
+						o.add("event", eventObj);
+						return o;
+					}
+				}
+			}
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+		} finally {
+			events.getSseHub().unregister(sub);
+		}
+
+		JsonObject o = new JsonObject();
+		o.addProperty("received", false);
+		o.addProperty("timeout", true);
+		o.addProperty("lastId", events.lastId());
+		return o;
 	}
 
 	public static void registerServerChat(RpcRouter router) {

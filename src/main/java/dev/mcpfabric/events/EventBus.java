@@ -26,6 +26,16 @@ public final class EventBus {
 		this.sse = sse;
 	}
 
+	public SseHub getSseHub() {
+		return sse;
+	}
+
+	/** @deprecated use {@link #getSseHub()} */
+	@Deprecated
+	public SseHub sse() {
+		return getSseHub();
+	}
+
 	public void setTick(long tick) {
 		this.currentTick = tick;
 	}

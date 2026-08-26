@@ -25,6 +25,18 @@ public final class GameEvents {
 			events.emit("chat", d);
 		});
 
+		ServerMessageEvents.COMMAND_MESSAGE.register((message, source, params) -> {
+			JsonObject d = new JsonObject();
+			d.addProperty("text", message.signedContent());
+			if (source.isPlayer() && source.getPlayer() != null) {
+				d.addProperty("player", source.getPlayer().getName().getString());
+				d.addProperty("uuid", source.getPlayer().getUUID().toString());
+			} else {
+				d.addProperty("player", source.getTextName());
+			}
+			events.emit("command_message", d);
+		});
+
 		ServerPlayConnectionEvents.JOIN.register((handler, sender, server) -> {
 			JsonObject d = new JsonObject();
 			d.addProperty("player", handler.player.getName().getString());

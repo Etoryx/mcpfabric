@@ -592,4 +592,42 @@ export const TOOLS: ToolDef[] = [
     },
     annotations: READ,
   },
+  {
+    name: "wait_for_chat",
+    method: "chat.waitFor",
+    title: "Wait for chat message",
+    description:
+      "Block until a chat or system message is received or timeout occurs. Consumes zero model calls or tokens while waiting. Returns the event immediately upon arrival.",
+    inputSchema: {
+      timeoutSeconds: z.number().int().min(1).max(120).optional().default(30).describe("Maximum time to wait in seconds (1..120)."),
+      sinceId: z.number().int().min(0).optional().describe("Only wait for events with id strictly greater than this (defaults to latest known event id)."),
+    },
+    annotations: READ,
+  },
+  {
+    name: "wait_for_event",
+    method: "events.waitFor",
+    title: "Wait for game event",
+    description:
+      "Block until one of the specified game events occurs (or timeout). Consumes zero model calls or tokens while waiting. Supported types: 'chat', 'system_message', 'command_message', 'player_damage', 'player_death', 'entity_death', 'player_join', 'player_leave', etc.",
+    inputSchema: {
+      types: z.array(z.string()).optional().describe('Event types to listen for, e.g. ["chat", "player_damage", "player_death", "command_message"]. If omitted, listens for any event.'),
+      timeoutSeconds: z.number().int().min(1).max(120).optional().default(30).describe("Maximum time to wait in seconds (1..120)."),
+      sinceId: z.number().int().min(0).optional().describe("Only wait for events with id strictly greater than this (defaults to latest known event id)."),
+    },
+    annotations: READ,
+  },
+  {
+    name: "set_thinking",
+    method: "ui.setThinking",
+    title: "Set AI thinking overlay",
+    description:
+      "Show or hide the animated thinking HUD overlay at the top-right of the Minecraft screen. Client-only; no-ops on dedicated server.",
+    inputSchema: {
+      thinking: z.boolean().describe("Whether to show (true) or hide (false) the thinking overlay."),
+      label: z.string().optional().describe("Custom label to display alongside animated dots (defaults to 'AI Thinking')."),
+      timeoutMs: z.number().int().min(1000).max(300000).optional().describe("Auto-hide timeout in milliseconds (defaults to 60000)."),
+    },
+    annotations: READ,
+  },
 ];

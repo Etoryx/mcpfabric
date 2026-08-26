@@ -53,15 +53,16 @@ export class BridgeClient {
     return h;
   }
 
-  private async fetchWithTimeout(path: string, init: RequestInit): Promise<Response> {
+  private async fetchWithTimeout(path: string, init: RequestInit, overrideTimeoutMs?: number): Promise<Response> {
+    const timeout = overrideTimeoutMs ?? this.timeoutMs;
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), this.timeoutMs);
+    const timer = setTimeout(() => controller.abort(), timeout);
     try {
       return await fetch(this.baseUrl + path, { ...init, signal: controller.signal });
     } catch (err) {
       const reason =
         err instanceof Error && err.name === "AbortError"
-          ? `timed out after ${this.timeoutMs}ms`
+          ? `timed out after ${timeout}ms`
           : (err as Error)?.message ?? String(err);
       throw new BridgeUnreachableError(
         `Could not reach the mcpfabric bridge at ${this.baseUrl} (${reason}). ` +
@@ -74,12 +75,16 @@ export class BridgeClient {
   }
 
   /** Invoke a bridge RPC method. Throws BridgeError / BridgeUnreachableError on failure. */
-  async call<T = unknown>(method: string, params: Record<string, unknown> = {}): Promise<T> {
-    const res = await this.fetchWithTimeout("/rpc", {
-      method: "POST",
-      headers: this.headers(),
-      body: JSON.stringify({ method, params }),
-    });
+  async call<T = unknown>(method: string, params: Record<string, unknown> = {}, customTimeoutMs?: number): Promise<T> {
+    const res = await this.fetchWithTimeout(
+      "/rpc",
+      {
+        method: "POST",
+        headers: this.headers(),
+        body: JSON.stringify({ method, params }),
+      },
+      customTimeoutMs,
+    );
 
     if (res.status === 401 || res.status === 403) {
       throw new BridgeError({

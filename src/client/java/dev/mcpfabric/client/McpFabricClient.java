@@ -32,6 +32,7 @@ public class McpFabricClient implements ClientModInitializer {
 		VisionHandlers.register(router);
 		NavHandlers.register(router);
 		ClientChatHandlers.register(router); // client variant of chat.send (speaks as local player)
+		ThinkingOverlay.register(router);
 		ClientEvents.register(McpFabric.events());
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> BotController.get().onClientTick(client));

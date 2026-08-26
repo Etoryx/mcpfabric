@@ -84,7 +84,13 @@ function registerTools(server: McpServer, bridge: BridgeClient): void {
 
     const handler = async (args: Record<string, unknown>): Promise<CallToolResult> => {
       try {
-        const result = await bridge.call(def.method, args ?? {});
+        let customTimeoutMs: number | undefined;
+        if (def.method === "chat.waitFor" || def.method === "events.waitFor") {
+          const timeoutSeconds = typeof args?.timeoutSeconds === "number" ? args.timeoutSeconds : 30;
+          const timeoutMs = typeof args?.timeoutMs === "number" ? args.timeoutMs : timeoutSeconds * 1000;
+          customTimeoutMs = timeoutMs + 5000;
+        }
+        const result = await bridge.call(def.method, args ?? {}, customTimeoutMs);
         return def.kind === "image" ? imageResult(result) : jsonResult(result);
       } catch (err) {
         return errorResult(err);

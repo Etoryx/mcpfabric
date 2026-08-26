@@ -22,6 +22,8 @@ bin/
 
 # Claude Code / local agent tooling (per-developer, may contain local paths)
 .claude/
+GEMINI.md
+.gemini/
 
 # Local credentials and developer-only environment overrides
 .env
