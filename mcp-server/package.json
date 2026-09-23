@@ -1,6 +1,6 @@
 {
   "name": "mcpfabric-mcp-server",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "MCP server that bridges AI agents to the mcpfabric Minecraft mod, exposing full read & control of the game as MCP tools.",
   "type": "module",
   "bin": {
@@ -29,10 +29,10 @@
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.30.0",
-    "zod": "^3.25.76"
+    "zod": "^4.6.5"
   },
   "devDependencies": {
-    "@types/node": "^22.10.0",
-    "typescript": "^5.7.0"
+    "@types/node": "^26.6.2",
+    "typescript": "^7.0.2"
   }
 }
