@@ -65,7 +65,10 @@ processResources {
 	def props = [
 		"version"          : version,
 		"minecraft_dep"    : project.minecraft_dep,
-		"neoforge_version" : project.neoforge_version
+		"neoforge_version" : project.neoforge_version,
+		// NeoForge 26.2 deprecated `logoFile` (and shows a warning screen for it) in favour of
+		// `iconFile` / `bannerFile`, which older NeoForge does not know.
+		"icon_property"    : project.findProperty('neoforge_icon_property') ?: 'logoFile'
 	]
 	inputs.properties props
 

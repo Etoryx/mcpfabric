@@ -8,7 +8,7 @@ modId = "mcpfabric"
 version = "${version}"
 displayName = "MCP Fabric"
 displayURL = "https://modrinth.com/mod/mcpfabric"
-logoFile = "assets/mcpfabric/icon.png"
+${icon_property} = "assets/mcpfabric/icon.png"
 authors = "dabinayo"
 description = '''Exposes full read & control access to Minecraft through an embedded HTTP bridge, designed to be driven by an MCP server so AI agents can observe and control the game.'''
 
