@@ -6,6 +6,30 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-09-23
+
+### Added
+- **NeoForge support.** 13 NeoForge jars (`mcpfabric-neoforge-<version>+<mc>.jar`) for Minecraft
+  1.21.1, 1.21.3–1.21.11, 26.1.2, 26.2 and 26.3, with the same tools, bridge and config as the
+  Fabric build, published to the same Modrinth project as their own releases. 1.21.2 is not
+  covered (NeoForge only shipped two abandoned betas for it).
+- `info.status` now reports the mod loader (`"loader": "fabric"` / `"neoforge"`).
+
+### Changed
+- Loader-specific code is isolated behind a small `Platform` layer and per-loader entrypoints
+  (`dev.mcpfabric.fabric`, `dev.mcpfabric.neoforge`); everything else is shared. The Fabric
+  entrypoints moved to `dev.mcpfabric.fabric.FabricEntrypoint` and
+  `dev.mcpfabric.client.fabric.FabricClientEntrypoint`.
+- Fabric and NeoForge are released independently: a `vX.Y.Z` tag publishes only Fabric, a
+  `neoforge-vX.Y.Z` tag only NeoForge (`publishFabric` / `publishNeoForge`, `buildFabric` /
+  `buildNeoForge`). `publishMods` is gone.
+- NeoForge nodes build against binary-patched Minecraft (ModDevGradle `disableRecompilation`), which
+  keeps the 13 extra nodes fast and light on memory in CI.
+
+### Fixed
+- Client RPCs sent while the game is still starting return `no_client_player` instead of an
+  internal `NullPointerException` (on NeoForge the bridge starts before Minecraft exists).
+
 ## [0.3.0] - 2026-09-23
 
 ### Added
