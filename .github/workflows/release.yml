@@ -81,14 +81,21 @@ jobs:
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
 
+      # action-gh-release v3 no longer supports `!` exclusion globs, so stage the mod jars (without
+      # the -sources jars) in one directory and attach that.
+      - name: Collect release jars
+        run: |
+          mkdir -p release-jars
+          cp versions/*/build/libs/*.jar release-jars/
+          rm -f release-jars/*-sources.jar
+          ls -1 release-jars
+
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
           name: mcpfabric ${{ steps.v.outputs.version }}
           tag_name: ${{ steps.v.outputs.tag }}
-          files: |
-            versions/*/build/libs/*.jar
-            !versions/*/build/libs/*-sources.jar
+          files: release-jars/*.jar
           generate_release_notes: true
           fail_on_unmatched_files: true
           # Tag a pre-release when the version carries a suffix (e.g. 0.2.0-beta.1, 0.3.0-rc.1).
