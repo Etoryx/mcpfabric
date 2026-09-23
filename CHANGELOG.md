@@ -6,6 +6,27 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-09-23
+
+### Added
+- **Minecraft 26.3 support.** A new 26.3 jar is built and published alongside the existing ones
+  (14 Minecraft versions in total).
+- The 26.2 jar is now published on Modrinth (the code has supported 26.2 since 0.2.0, but the
+  0.2.1 release never reached Modrinth).
+- The 26.1.2 jar is also tagged for 26.1 and 26.1.1 on Modrinth, matching its declared
+  compatibility.
+
+### Changed
+- Fabric Loader requirement raised to 0.19.5; Fabric API updated to the latest builds for 1.21.1,
+  1.21.11, 26.1.2 and 26.2.
+- Build tooling: Stonecutter 0.9.8, Gradle 9.6.1.
+- MCP server: zod 4, TypeScript 7 and `@types/node` 26.
+- CI and release workflows use the latest `setup-java`, `setup-node`, `setup-gradle` and
+  `action-gh-release`.
+
+### Fixed
+- `interact.dropItem` now respects `enablePlayerControl`, like every other player-control action.
+
 ## [0.2.1] - 2026-07-30
 
 ### Fixed

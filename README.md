@@ -20,7 +20,7 @@
 
 MCP Fabric is a local-first Fabric mod and Model Context Protocol server that gives AI agents
 structured observation and controlled access to Minecraft. It works on both the client and
-dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.2.
+dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.3.
 
 - **Play through natural language:** move, look, navigate, mine, build, fight, and use inventory.
 - **See the game:** inspect blocks, entities, players, status, chat, events, and screenshots.
@@ -76,11 +76,11 @@ A single source tree targets many Minecraft versions using
 | Line     | Versions (one jar each)                                          | Java |
 |----------|-----------------------------------------------------------------|------|
 | 1.21.x   | 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10, 1.21.11 | 21 |
-| 26.x     | 26.1.2 (installs on 26.1–26.1.2), 26.2                           | 25   |
+| 26.x     | 26.1.2 (installs on 26.1–26.1.2), 26.2, 26.3                     | 25   |
 
-13 jars are produced, each named `mcpfabric-<modVersion>+<mcVersion>.jar` (e.g.
-`mcpfabric-0.2.0+1.21.8.jar`). The 26.1.2 jar declares compatibility with the whole 26.1 line.
-Requires **Fabric Loader ≥ 0.19.3** and the matching **Fabric API** build, plus **Node.js ≥ 20**
+14 jars are produced, each named `mcpfabric-<modVersion>+<mcVersion>.jar` (e.g.
+`mcpfabric-0.3.0+1.21.8.jar`). The 26.1.2 jar declares compatibility with the whole 26.1 line.
+Requires **Fabric Loader ≥ 0.19.5** and the matching **Fabric API** build, plus **Node.js ≥ 20**
 for the MCP server.
 
 ---

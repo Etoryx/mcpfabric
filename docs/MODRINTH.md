@@ -52,7 +52,7 @@ capture screenshots, read live events, edit worlds, run commands, and administer
 | Both | Use all capabilities appropriate to the active side |
 
 Each supported Minecraft version has its own jar. MCP Fabric supports Minecraft 1.21.1–1.21.11 and
-26.1–26.2, Fabric Loader 0.19.3 or newer, and the matching Fabric API.
+26.1–26.3, Fabric Loader 0.19.5 or newer, and the matching Fabric API.
 
 ### How do I install MCP Fabric?
 
