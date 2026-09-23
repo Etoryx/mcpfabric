@@ -1,0 +1,89 @@
+// Per-version NeoForge build (ModDevGradle). Stonecutter applies this script to every
+// `<minecraft>-neoforge` node declared in settings.gradle; `project.minecraft_version` /
+// `project.neoforge_version` come from that node's versions/<node>/gradle.properties. Settings shared
+// with the Fabric build live in gradle/common.gradle and gradle/modrinth.gradle.
+plugins {
+	id 'maven-publish'
+	// Modrinth publishing; the root `publishNeoForge` task fans it out across every NeoForge node.
+	id 'com.modrinth.minotaur'
+	id 'net.neoforged.moddev'
+}
+
+ext.modLoader = 'neoforge'
+
+// e.g. mcpfabric-neoforge-0.3.0+1.21.1.jar
+version = "${project.mod_version}+${project.minecraft_version}"
+group = project.maven_group
+
+base {
+	archivesName = "${project.archives_base_name}-neoforge"
+}
+
+// Same source layout as the Fabric build: shared code in src/main, client-only code in src/client.
+// NeoForge has no split environments, so the client classes ship in the one jar and are only loaded
+// on the physical client (see NeoForgeEntrypoint).
+sourceSets {
+	client {
+		compileClasspath += main.output
+		runtimeClasspath += main.output
+	}
+}
+
+apply from: rootProject.file('gradle/common.gradle')
+
+neoForge {
+	enable {
+		version = project.neoforge_version
+		// Build against binary-patched Minecraft instead of decompiling + recompiling it: much faster
+		// and far lighter on memory (13 nodes). Pass -Pneoforge_recompile=true to get Minecraft
+		// sources for debugging a NeoForge node in the IDE.
+		disableRecompilation = !(project.findProperty('neoforge_recompile')?.toString()?.toBoolean() ?: false)
+	}
+
+	addModdingDependenciesTo(sourceSets.client)
+
+	runs {
+		client {
+			client()
+			sourceSet = sourceSets.client
+		}
+		server {
+			server()
+			programArgument '--nogui'
+		}
+	}
+
+	mods {
+		mcpfabric {
+			sourceSet sourceSets.main
+			sourceSet sourceSets.client
+		}
+	}
+}
+
+processResources {
+	def props = [
+		"version"          : version,
+		"minecraft_dep"    : project.minecraft_dep,
+		"neoforge_version" : project.neoforge_version,
+		// NeoForge 26.2 deprecated `logoFile` (and shows a warning screen for it) in favour of
+		// `iconFile` / `bannerFile`, which older NeoForge does not know.
+		"icon_property"    : project.findProperty('neoforge_icon_property') ?: 'logoFile'
+	]
+	inputs.properties props
+
+	filesMatching("META-INF/neoforge.mods.toml") {
+		expand props
+	}
+	exclude 'fabric.mod.json'
+}
+
+jar {
+	from sourceSets.client.output
+}
+
+sourcesJar {
+	from sourceSets.client.allSource
+}
+
+apply from: rootProject.file('gradle/modrinth.gradle')

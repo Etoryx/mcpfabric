@@ -1,10 +1,11 @@
-// Per-version mod build. Stonecutter applies this script to every version node declared in
-// settings.gradle; `project.minecraft_version` / `project.fabric_api_version` come from that
-// node's versions/<version>/gradle.properties.
+// Per-version Fabric build. Stonecutter applies this script to every Fabric node declared in
+// settings.gradle (NeoForge nodes use build.neoforge.gradle); `project.minecraft_version` /
+// `project.fabric_api_version` come from that node's versions/<node>/gradle.properties. Settings shared
+// by both loaders live in gradle/common.gradle and gradle/modrinth.gradle.
 plugins {
 	id 'maven-publish'
 	// Modrinth publishing (declared apply false in stonecutter.gradle). Each node gets its own
-	// `modrinth` task; the root `publishMods` task fans them out across every Minecraft version.
+	// `modrinth` task; the root `publishFabric` task fans them out across every Minecraft version.
 	id 'com.modrinth.minotaur'
 }
 
@@ -14,6 +15,8 @@ plugins {
 boolean unobfuscated = project.minecraft_version.startsWith('26.')
 apply plugin: unobfuscated ? 'net.fabricmc.fabric-loom' : 'net.fabricmc.fabric-loom-remap'
 
+ext.modLoader = 'fabric'
+
 // Fabric-style versioned jar name, e.g. mcpfabric-0.2.0+1.21.8.jar.
 version = "${project.mod_version}+${project.minecraft_version}"
 group = project.maven_group
@@ -22,10 +25,7 @@ base {
 	archivesName = project.archives_base_name
 }
 
-// Minecraft's required Java version rises across the supported range (21 for 1.21.x; 25 for the
-// 26.x line). Each node declares java_version; the foojay resolver in settings.gradle provisions
-// the matching JDK automatically.
-def javaVersion = (project.findProperty("java_version") ?: "21") as int
+apply from: rootProject.file('gradle/common.gradle')
 
 loom {
 	splitEnvironmentSourceSets()
@@ -63,94 +63,7 @@ processResources {
 	filesMatching("fabric.mod.json") {
 		expand props
 	}
+	exclude 'META-INF/neoforge.mods.toml'
 }
 
-java {
-	withSourcesJar()
-	toolchain {
-		languageVersion = JavaLanguageVersion.of(javaVersion)
-	}
-}
-
-tasks.withType(JavaCompile).configureEach {
-	it.options.release = javaVersion
-	it.options.encoding = "UTF-8"
-}
-
-jar {
-	def projectName = rootProject.name
-	inputs.property "projectName", projectName
-
-	from("LICENSE") {
-		rename { "${it}_$projectName" }
-	}
-}
-
-publishing {
-	publications {
-		create("mavenJava", MavenPublication) {
-			artifactId = "${project.archives_base_name}-mc${project.minecraft_version}"
-			from components.java
-		}
-	}
-	repositories {
-		// Add a target repository here to publish (e.g. GitHub Packages); left empty by default.
-	}
-}
-
-// === Modrinth publishing (minotaur) ===
-// Applied to every Stonecutter node. The root `./gradlew publishMods` task fans the per-node
-// `modrinth` task across all supported Minecraft versions; each node uploads its own jar as a
-// separate Modrinth version (e.g. 0.2.0+1.21.8), targeting exactly the version(s) it was built for.
-//
-// The public project is https://modrinth.com/mod/mcpfabric (`modrinth_id=eA63YgUh`).
-// Expose a write-scoped token as the MODRINTH_TOKEN env var (a GitHub Actions secret in CI).
-// Without MODRINTH_TOKEN the task runs in debug mode: it builds and validates but uploads nothing.
-
-// Pull the section for the current mod version out of CHANGELOG.md (Keep a Changelog format), so the
-// Modrinth version notes track the changelog automatically.
-def changelogForVersion = { String v ->
-	def file = rootProject.file('CHANGELOG.md')
-	if (!file.exists()) return ''
-	def text = file.text
-	int header = text.indexOf("## [${v}]")
-	if (header < 0) return "Release ${v} — see CHANGELOG.md for details."
-	int bodyStart = text.indexOf('\n', header)
-	if (bodyStart < 0) return ''
-	int next = text.indexOf('\n## [', bodyStart + 1)
-	if (next < 0) next = text.length()
-	return text.substring(bodyStart, next).trim()
-}
-
-// Each node ships its own Minecraft version; a node may declare extra API-compatible versions via
-// `extra_game_versions` (comma-separated) in versions/<version>/gradle.properties.
-def releaseGameVersions = [project.minecraft_version as String]
-if (project.hasProperty('extra_game_versions') && project.extra_game_versions?.trim()) {
-	releaseGameVersions += project.extra_game_versions.split(',')*.trim().findAll { it }
-}
-
-def modrinthToken = System.getenv('MODRINTH_TOKEN')
-
-modrinth {
-	token.set(modrinthToken ?: '')
-	projectId.set(project.property('modrinth_id') as String)
-
-	versionNumber.set(version as String)                                  // 0.2.0+1.21.8 — unique per node
-	versionName.set("${project.archives_base_name} ${version}" as String)
-	versionType.set((project.findProperty('publish_type') ?: 'release') as String)
-
-	uploadFile.set(tasks.findByName('remapJar') ?: tasks.named('jar').get())
-
-	gameVersions.set(releaseGameVersions)
-	loaders.set(['fabric'])
-	detectLoaders.set(false)
-
-	changelog.set(changelogForVersion(project.mod_version as String))
-
-	dependencies {
-		required.project('fabric-api')
-	}
-
-	// No token (e.g. a local run, or CI without the secret) -> do everything except the upload.
-	debugMode.set(modrinthToken == null || modrinthToken.isEmpty())
-}
+apply from: rootProject.file('gradle/modrinth.gradle')

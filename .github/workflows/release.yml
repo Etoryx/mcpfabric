@@ -1,15 +1,22 @@
 name: Release
 
-# Cut a release by pushing a tag that matches the mod version, e.g.:
-#   git tag v0.2.0 && git push origin v0.2.0
-# This builds every supported Minecraft version, publishes them to Modrinth, and creates a GitHub
-# Release with all the jars attached. See docs/RELEASING.md for the full runbook.
+# Fabric and NeoForge are released independently. Cut a release by pushing a tag that matches the
+# mod version, prefixed by loader:
+#   git tag v0.4.0 && git push origin v0.4.0                   # Fabric only
+#   git tag neoforge-v0.4.0 && git push origin neoforge-v0.4.0 # NeoForge only
+# This builds every supported Minecraft version of that loader, publishes them to Modrinth, and
+# creates a GitHub Release with that loader's jars attached. See docs/RELEASING.md for the runbook.
 on:
   push:
-    tags: [ 'v*' ]
+    tags: [ 'v*', 'neoforge-v*' ]
   # Manual fallback: lets you re-run a release from the Actions tab. Creates the tag if missing.
   workflow_dispatch:
     inputs:
+      loader:
+        description: 'Mod loader to release'
+        type: choice
+        options: [ fabric, neoforge ]
+        required: true
       version:
         description: 'Version to release without the leading v (e.g. 0.2.0)'
         required: true
@@ -23,21 +30,39 @@ concurrency:
 
 jobs:
   release:
-    name: Build & publish all versions
+    name: Build & publish (${{ inputs.loader || (startsWith(github.ref_name, 'neoforge-') && 'neoforge' || 'fabric') }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-      - name: Resolve release version
+      - name: Resolve loader and release version
         id: v
+        env:
+          INPUT_LOADER: ${{ inputs.loader }}
+          INPUT_VERSION: ${{ inputs.version }}
         run: |
           if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-            VERSION="${{ inputs.version }}"
+            LOADER="$INPUT_LOADER"
+            VERSION="$INPUT_VERSION"
+          elif [[ "$GITHUB_REF_NAME" == neoforge-v* ]]; then
+            LOADER=neoforge
+            VERSION="${GITHUB_REF_NAME#neoforge-v}"
           else
+            LOADER=fabric
             VERSION="${GITHUB_REF_NAME#v}"
           fi
+          if [ "$LOADER" = neoforge ]; then
+            echo "tag=neoforge-v${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "task=NeoForge" >> "$GITHUB_OUTPUT"
+            echo "name=mcpfabric ${VERSION} (NeoForge)" >> "$GITHUB_OUTPUT"
+            echo "jars=mcpfabric-neoforge-*.jar" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "task=Fabric" >> "$GITHUB_OUTPUT"
+            echo "name=mcpfabric ${VERSION}" >> "$GITHUB_OUTPUT"
+            echo "jars=mcpfabric-[0-9]*.jar" >> "$GITHUB_OUTPUT"
+          fi
           echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
-          echo "tag=v${VERSION}" >> "$GITHUB_OUTPUT"
 
       - name: Verify version matches gradle.properties
         run: |
@@ -71,29 +96,29 @@ jobs:
             exit 1
           fi
 
-      - name: Build every supported Minecraft version
+      - name: Build every supported Minecraft version of the loader
         # The daemon runs on JDK 25 (last setup-java entry); point Gradle at both JDKs so the 1.21.x
         # compile toolchain (21) is found without re-downloading it via the foojay resolver.
-        run: ./gradlew chiseledBuild --stacktrace -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+        run: ./gradlew build${{ steps.v.outputs.task }} --stacktrace -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
 
-      - name: Publish all versions to Modrinth
-        run: ./gradlew publishMods --stacktrace -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
+      - name: Publish the loader's versions to Modrinth
+        run: ./gradlew publish${{ steps.v.outputs.task }} --stacktrace -Dorg.gradle.java.installations.fromEnv=JAVA_HOME_21_X64,JAVA_HOME_25_X64
         env:
           MODRINTH_TOKEN: ${{ secrets.MODRINTH_TOKEN }}
 
-      # action-gh-release v3 no longer supports `!` exclusion globs, so stage the mod jars (without
-      # the -sources jars) in one directory and attach that.
+      # action-gh-release v3 no longer supports `!` exclusion globs, so stage this loader's mod jars
+      # (without the -sources jars) in one directory and attach that.
       - name: Collect release jars
         run: |
           mkdir -p release-jars
-          cp versions/*/build/libs/*.jar release-jars/
+          cp versions/*/build/libs/${{ steps.v.outputs.jars }} release-jars/
           rm -f release-jars/*-sources.jar
           ls -1 release-jars
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3.0.3
         with:
-          name: mcpfabric ${{ steps.v.outputs.version }}
+          name: ${{ steps.v.outputs.name }}
           tag_name: ${{ steps.v.outputs.tag }}
           files: release-jars/*.jar
           generate_release_notes: true

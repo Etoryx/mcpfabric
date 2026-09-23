@@ -10,6 +10,8 @@ plugins {
 	// Modrinth publishing. Put on the classpath here (apply false) and applied per node in
 	// build.gradle, so every version node can publish its own jar without repeating the version.
 	id 'com.modrinth.minotaur' version '2.9.0' apply false
+	// NeoForge nodes (build.neoforge.gradle) build with ModDevGradle.
+	id 'net.neoforged.moddev' version '2.0.147' apply false
 }
 
 stonecutter.active('1.21.8') /* [SC] DO NOT EDIT */
@@ -21,12 +23,28 @@ tasks.register('chiseledBuild') {
 	dependsOn(stonecutter.tasks.named('build'))
 }
 
-// `./gradlew publishMods` runs every node's `modrinth` task, uploading one Modrinth version per
-// supported Minecraft version (e.g. 0.2.0+1.21.8). Used by the release workflow on a `v*` tag.
-// Requires MODRINTH_TOKEN in the environment and `modrinth_id` set in gradle.properties; without a
-// token each node runs in debug mode (builds + validates, uploads nothing).
-tasks.register('publishMods') {
-	group = 'publishing'
-	description = 'Publishes every supported Minecraft version to Modrinth'
-	dependsOn(stonecutter.tasks.named('modrinth'))
+// Fabric and NeoForge are released independently (tags v* and neoforge-v*, see release.yml), so the
+// per-loader tasks below only touch that loader's nodes. Fabric nodes are named after the Minecraft
+// version (1.21.8); NeoForge nodes are named <mc>-neoforge (1.21.1-neoforge).
+def loaderNodes = { String loader ->
+	stonecutter.versions*.project.findAll { (it.endsWith('-neoforge') ? 'neoforge' : 'fabric') == loader }
+}
+
+[fabric: 'Fabric', neoforge: 'NeoForge'].each { loader, name ->
+	// `./gradlew build<Loader>` builds every Minecraft version of one loader.
+	tasks.register("build${name}") {
+		group = 'project'
+		description = "Builds every supported Minecraft version for ${name}"
+		dependsOn(loaderNodes(loader).collect { ":${it}:build" })
+	}
+
+	// `./gradlew publish<Loader>` runs that loader's per-node `modrinth` tasks, uploading one Modrinth
+	// version per Minecraft version (e.g. 0.3.0+1.21.8, 0.3.0+1.21.1-neoforge). Used by the release
+	// workflow. Requires MODRINTH_TOKEN in the environment and `modrinth_id` in gradle.properties;
+	// without a token each node runs in debug mode (builds + validates, uploads nothing).
+	tasks.register("publish${name}") {
+		group = 'publishing'
+		description = "Publishes every supported Minecraft version for ${name} to Modrinth"
+		dependsOn(loaderNodes(loader).collect { ":${it}:modrinth" })
+	}
 }

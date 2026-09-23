@@ -18,9 +18,9 @@
 [Contributing](CONTRIBUTING.md)
 </div>
 
-MCP Fabric is a local-first Fabric mod and Model Context Protocol server that gives AI agents
+MCP Fabric is a local-first Minecraft mod and Model Context Protocol server that gives AI agents
 structured observation and controlled access to Minecraft. It works on both the client and
-dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.3.
+dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.3, on Fabric and NeoForge.
 
 - **Play through natural language:** move, look, navigate, mine, build, fight, and use inventory.
 - **See the game:** inspect blocks, entities, players, status, chat, events, and screenshots.
@@ -32,8 +32,8 @@ dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.3.
 ## Quick start
 
 1. Install [Fabric Loader](https://fabricmc.net/use/installer/) and
-   [Fabric API](https://modrinth.com/mod/fabric-api).
-2. Download the jar matching your Minecraft version from
+   [Fabric API](https://modrinth.com/mod/fabric-api), or [NeoForge](https://neoforged.net/).
+2. Download the jar matching your Minecraft version and loader from
    [Modrinth](https://modrinth.com/mod/mcpfabric/versions) and place it in `mods/`.
 3. Launch Minecraft once, then copy `token` from `config/mcpfabric.config.json`.
 4. Build the MCP server with `cd mcp-server && npm ci && npm run build`.
@@ -45,7 +45,7 @@ dedicated servers across Minecraft 1.21.1–1.21.11 and 26.1–26.3.
 
 ## How it works
 
-`mcpfabric` has two parts: a Fabric mod that embeds a local HTTP bridge in Minecraft, and a small
+`mcpfabric` has two parts: a Fabric / NeoForge mod that embeds a local HTTP bridge in Minecraft, and a small
 TypeScript MCP server that exposes the bridge as discoverable tools.
 
 ```
@@ -53,7 +53,7 @@ Claude / any MCP client
         │  MCP (stdio or streamable HTTP)
    mcp-server  (Node / TypeScript)
         │  HTTP  POST /rpc (JSON-RPC) + GET /events (SSE),  bearer token, 127.0.0.1 only
-   Fabric mod "mcpfabric"  (HTTP server embedded in Minecraft)
+   mod "mcpfabric" on Fabric or NeoForge  (HTTP server embedded in Minecraft)
         │  all game access goes through the main-thread executor (server.execute / Minecraft.execute)
    ┌── common (env *) ─────────────┐   ┌── client (env client) ─────────────────┐
    │ info  world  entities         │   │ player  control  interact               │
@@ -78,10 +78,32 @@ A single source tree targets many Minecraft versions using
 | 1.21.x   | 1.21.1, 1.21.2, 1.21.3, 1.21.4, 1.21.5, 1.21.6, 1.21.7, 1.21.8, 1.21.9, 1.21.10, 1.21.11 | 21 |
 | 26.x     | 26.1.2 (installs on 26.1–26.1.2), 26.2, 26.3                     | 25   |
 
-14 jars are produced, each named `mcpfabric-<modVersion>+<mcVersion>.jar` (e.g.
+14 Fabric jars are produced, each named `mcpfabric-<modVersion>+<mcVersion>.jar` (e.g.
 `mcpfabric-0.3.0+1.21.8.jar`). The 26.1.2 jar declares compatibility with the whole 26.1 line.
-Requires **Fabric Loader ≥ 0.19.5** and the matching **Fabric API** build, plus **Node.js ≥ 20**
-for the MCP server.
+They require **Fabric Loader ≥ 0.19.5** and the matching **Fabric API** build.
+
+13 NeoForge jars cover the same versions except 1.21.2 (NeoForge only shipped two abandoned betas
+for it), each named `mcpfabric-neoforge-<modVersion>+<mcVersion>.jar`:
+
+| Minecraft | Minimum NeoForge |
+|-----------|------------------|
+| 1.21.1    | 21.1.251         |
+| 1.21.3    | 21.3.97          |
+| 1.21.4    | 21.4.157         |
+| 1.21.5    | 21.5.98          |
+| 1.21.6    | 21.6.20-beta     |
+| 1.21.7    | 21.7.25-beta     |
+| 1.21.8    | 21.8.54          |
+| 1.21.9    | 21.9.16-beta     |
+| 1.21.10   | 21.10.64         |
+| 1.21.11   | 21.11.45         |
+| 26.1.2    | 26.1.2.109       |
+| 26.2      | 26.2.0.88        |
+| 26.3      | 26.3.0.10-beta   |
+
+NeoForge for 1.21.6, 1.21.7, 1.21.9 and 26.3 only exists as beta builds.
+
+The MCP server needs **Node.js ≥ 20**.
 
 ---
 
@@ -91,14 +113,15 @@ for the MCP server.
 # Build a single version (the one currently active in stonecutter.gradle)
 ./gradlew build           # Windows: gradlew.bat build
 
-# Build a specific version
+# Build a specific version (Fabric nodes are named after the version, NeoForge nodes <mc>-neoforge)
 ./gradlew ":1.21.8:build"
+./gradlew ":1.21.1-neoforge:build"
 
 # Build every supported version at once
 ./gradlew chiseledBuild
 ```
 
-Per-version jars land in `versions/<mcVersion>/build/libs/`.
+Per-version jars land in `versions/<node>/build/libs/`.
 
 > **JDK note.** 1.21.x builds need **JDK 21**; the 26.x line needs **JDK 25**. Loom requires the
 > Gradle daemon to run on a JDK at least as new as the Minecraft version, so to build 26.x (or
@@ -112,10 +135,11 @@ Per-version jars land in `versions/<mcVersion>/build/libs/`.
 
 ### Install
 
-Drop the jar for your Minecraft version, together with **Fabric API**, into your `mods/` folder:
+Drop the jar for your Minecraft version and loader into your `mods/` folder (on Fabric, together
+with **Fabric API**):
 
-- **Client** (AI plays as you): the `mods/` folder of your Fabric instance.
-- **Server** (AI as admin): the `mods/` folder of your dedicated Fabric server.
+- **Client** (AI plays as you): the `mods/` folder of your Fabric / NeoForge instance.
+- **Server** (AI as admin): the `mods/` folder of your dedicated Fabric / NeoForge server.
 - Both sides at once is fine.
 
 On first launch the mod creates `config/mcpfabric.config.json` and logs where to find the token:
@@ -255,17 +279,22 @@ Call `get_status` first — it reports which side you are on and which groups ar
 
 ```
 mcpfabric/
-├─ settings.gradle, stonecutter.gradle, build.gradle   # Stonecutter multi-version + Fabric Loom
+├─ settings.gradle, stonecutter.gradle                 # Stonecutter nodes (version × loader)
+├─ build.gradle, build.neoforge.gradle                 # Fabric Loom / NeoForge ModDevGradle builds
+├─ gradle/common.gradle, gradle/modrinth.gradle        # shared by both loaders
 ├─ gradle.properties                                   # shared build config
-├─ versions/<mc>/gradle.properties                     # per-version Minecraft + Fabric API
+├─ versions/<node>/gradle.properties                   # per-node Minecraft + loader versions
 ├─ src/main/java/dev/mcpfabric/                         # common (env *): bridge + server handlers
 │  ├─ McpFabric.java, ServerHolder.java
+│  ├─ platform/    (Platform: the loader services the shared code needs)
+│  ├─ fabric/, neoforge/   (loader entrypoints; only the node's own loader is compiled)
 │  ├─ bridge/      (HttpBridgeServer, RpcRouter, MainThread, SseHub, Json, ...)
 │  ├─ config/      (McpConfig)
 │  ├─ events/      (EventBus, GameEvent)
 │  └─ handlers/    (Info/World/Entity/PlayerAdmin/Command/Chat + support/CommandRunner, Levels)
 ├─ src/client/java/dev/mcpfabric/client/                # client (env client): bot + client handlers
 │  ├─ McpFabricClient.java, ClientMc.java, BotController.java, ClientEvents.java
+│  ├─ fabric/, neoforge/   (loader client entrypoints)
 │  ├─ nav/AStarPathfinder.java
 │  └─ handlers/    (LocalPlayer/Control/Interact/Inventory/Vision/Nav/ClientChat)
 └─ mcp-server/                                          # MCP server (TypeScript)

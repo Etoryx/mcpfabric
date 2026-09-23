@@ -52,12 +52,14 @@ capture screenshots, read live events, edit worlds, run commands, and administer
 | Both | Use all capabilities appropriate to the active side |
 
 Each supported Minecraft version has its own jar. MCP Fabric supports Minecraft 1.21.1–1.21.11 and
-26.1–26.3, Fabric Loader 0.19.5 or newer, and the matching Fabric API.
+26.1–26.3 on Fabric (Fabric Loader 0.19.5 or newer, and the matching Fabric API), and Minecraft
+1.21.1, 1.21.3–1.21.11 and 26.1.2–26.3 on NeoForge.
 
 ### How do I install MCP Fabric?
 
-1. Install Fabric Loader and Fabric API.
-2. Download the MCP Fabric jar matching your exact Minecraft version and place it in `mods/`.
+1. Install Fabric Loader and Fabric API, or NeoForge.
+2. Download the MCP Fabric jar matching your exact Minecraft version and loader and place it in
+   `mods/`.
 3. Launch once and copy `token` from `config/mcpfabric.config.json`.
 4. Build the small Node.js MCP server and add it to your MCP host.
 

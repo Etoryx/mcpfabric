@@ -1,0 +1,54 @@
+// Settings shared by every Stonecutter node, whichever loader builds it. Applied from build.gradle
+// (Fabric) and build.neoforge.gradle (NeoForge) after they set `ext.modLoader`, `version` and
+// `base.archivesName`.
+
+def loader = project.modLoader as String
+def otherLoaders = ['fabric', 'neoforge'] - loader
+
+// Loader-specific code lives in packages named after the loader (dev.mcpfabric.fabric,
+// dev.mcpfabric.client.neoforge, ...). Each node compiles only its own loader's packages; everything
+// else is shared. `//? if fabric` / `//? if neoforge` are available for the rare in-file difference.
+sourceSets.configureEach { sourceSet ->
+	otherLoaders.each { sourceSet.java.exclude("**/${it}/**") }
+}
+stonecutter.constants.match(loader, 'fabric', 'neoforge')
+
+// Minecraft's required Java version rises across the supported range (21 for 1.21.x; 25 for the
+// 26.x line). Each node declares java_version; the foojay resolver in settings.gradle provisions
+// the matching JDK automatically.
+// A local (not just ext) so closures below can't resolve it to a same-named task property.
+def javaVersion = (project.findProperty("java_version") ?: "21") as int
+ext.javaVersion = javaVersion
+
+java {
+	withSourcesJar()
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(javaVersion)
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	it.options.release = javaVersion
+	it.options.encoding = "UTF-8"
+}
+
+jar {
+	def projectName = rootProject.name
+	inputs.property "projectName", projectName
+
+	from("LICENSE") {
+		rename { "${it}_$projectName" }
+	}
+}
+
+publishing {
+	publications {
+		create("mavenJava", MavenPublication) {
+			artifactId = "${base.archivesName.get()}-mc${project.minecraft_version}"
+			from components.java
+		}
+	}
+	repositories {
+		// Add a target repository here to publish (e.g. GitHub Packages); left empty by default.
+	}
+}

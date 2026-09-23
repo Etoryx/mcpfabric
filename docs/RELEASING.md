@@ -5,19 +5,27 @@ This project ships one mod, built for every supported Minecraft version from a s
 each to Modrinth, and creates a GitHub Release with every jar attached — all driven by pushing a
 single git tag.
 
+**Fabric and NeoForge are released independently**, into the same Modrinth project: a `vX.Y.Z` tag
+releases only Fabric, a `neoforge-vX.Y.Z` tag releases only NeoForge. Each gets its own GitHub
+Release with only its own jars.
+
 ## How a release flows
 
 ```
-git tag vX.Y.Z  ──push──▶  .github/workflows/release.yml
-                              ├─ verify tag == mod_version
-                              ├─ ./gradlew chiseledBuild        (build all MC versions)
-                              ├─ ./gradlew publishMods          (upload each to Modrinth)
-                              └─ GitHub Release with all jars attached
+git tag vX.Y.Z           ──push──▶  .github/workflows/release.yml
+git tag neoforge-vX.Y.Z               ├─ verify tag == mod_version
+                                      ├─ ./gradlew buildFabric   | buildNeoForge    (that loader's MC versions)
+                                      ├─ ./gradlew publishFabric | publishNeoForge  (upload each to Modrinth)
+                                      └─ GitHub Release with that loader's jars attached
 ```
 
-Each Minecraft version becomes its own Modrinth version, numbered `X.Y.Z+<mcVersion>` (for example
-`0.2.0+1.21.8`), targeting exactly the Minecraft version(s) it was built for. Users filtering Modrinth
-by their Minecraft version get the correct jar.
+Each Minecraft version becomes its own Modrinth version, targeting exactly the Minecraft version(s)
+and loader it was built for: `X.Y.Z+<mcVersion>` for Fabric (for example `0.2.0+1.21.8`) and
+`X.Y.Z+<mcVersion>-neoforge` for NeoForge. Users filtering Modrinth by Minecraft version and loader
+get the correct jar.
+
+Both loaders share `mod_version` and the CHANGELOG section. Releasing one loader does not require
+releasing the other; to ship a loader-only fix, bump `mod_version` and tag just that loader.
 
 ## One-time setup
 
@@ -61,8 +69,9 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
    mod_version=0.3.0
    ```
 
-   Version scheme: the jar/Modrinth version is `mod_version+minecraft_version`. The git tag carries
-   only the mod version (`v0.3.0`). For pre-releases use a suffix — `0.3.0-beta.1`, `0.3.0-rc.1` —
+   Version scheme: the jar/Modrinth version is `mod_version+minecraft_version` (plus `-neoforge` on
+   Modrinth for NeoForge). The git tag carries only the loader prefix and mod version (`v0.3.0`,
+   `neoforge-v0.3.0`). For pre-releases use a suffix — `0.3.0-beta.1`, `0.3.0-rc.1` —
    which the workflow flags as a GitHub pre-release automatically.
 
 2. **Update [`CHANGELOG.md`](../CHANGELOG.md)**: move the `[Unreleased]` notes into a new
@@ -75,8 +84,10 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
    git add gradle.properties CHANGELOG.md
    git commit -m "chore: release v0.3.0"
    git push
-   git tag v0.3.0
+   git tag v0.3.0                      # Fabric
    git push origin v0.3.0
+   git tag neoforge-v0.3.0             # NeoForge (now, or whenever it is ready)
+   git push origin neoforge-v0.3.0
    ```
 
    The tag must match `mod_version` exactly, or the workflow fails fast with a clear message.
@@ -87,14 +98,17 @@ Repo → **Settings → Secrets and variables → Actions → New repository sec
 ### Manual / re-run
 
 The workflow also has a `workflow_dispatch` trigger (Actions tab → **Release** → **Run workflow**),
-which takes the version (without the leading `v`) and creates the tag if it does not yet exist.
+which takes the loader and the version (without the leading `v`) and creates the tag if it does not
+yet exist.
 Useful for re-running a failed publish.
 
 ## Build locally without publishing
 
 ```bash
-./gradlew chiseledBuild        # build every version → versions/<mc>/build/libs/*.jar
-./gradlew publishMods          # debug mode unless MODRINTH_TOKEN is set; uploads nothing locally
+./gradlew chiseledBuild        # build every node → versions/<node>/build/libs/*.jar
+./gradlew buildFabric          # build every Fabric node (buildNeoForge: every NeoForge node)
+./gradlew publishFabric        # debug mode unless MODRINTH_TOKEN is set; uploads nothing locally
+./gradlew publishNeoForge      # same, for NeoForge
 ./gradlew :1.21.8:build        # build a single version
 ```
 
@@ -102,7 +116,7 @@ Useful for re-running a failed publish.
 
 1. Add the version to the `versions(...)` list in [`settings.gradle`](../settings.gradle).
 2. Create `versions/<newVersion>/gradle.properties` (copy an existing one; set `minecraft_version`,
-   `fabric_api_version`, `minecraft_dep`, `java_version`).
+   `fabric_api_version`, `minecraft_dep`, `java_version`). NeoForge nodes: see CONTRIBUTING.md.
 3. Resolve any source differences with Stonecutter `//?` comments.
 
 It is then built and published automatically by the next release — no workflow changes needed.
@@ -115,6 +129,7 @@ CurseForge is intentionally left out for now. To add it:
 2. Add the [`net.darkhax.curseforgegradle`](https://github.com/Darkhax-Minecraft/CurseForgeGradle)
    plugin to `stonecutter.gradle` (apply false) and apply it in `build.gradle`, registering a
    `curseforge` task per node that uploads `remapJar` with the node's `minecraft_version`.
-3. Add `dependsOn(stonecutter.tasks.named('curseforge'))` to the `publishMods` task.
+3. Make the `publishFabric` / `publishNeoForge` tasks in `stonecutter.gradle` also depend on each
+   node's `curseforge` task.
 4. Add a `CURSEFORGE_TOKEN` GitHub secret and pass it through `env:` in the publish step of
    `release.yml`.

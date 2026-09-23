@@ -37,7 +37,7 @@ public final class VisionHandlers {
 				throw RpcException.unavailable("Vision is disabled in mcpfabric.config.json (enableVision=false).");
 			}
 			Minecraft mc = ClientMc.mc();
-			if (mc.player == null || mc.level == null) throw RpcException.noClientPlayer();
+			if (mc == null || mc.player == null || mc.level == null) throw RpcException.noClientPlayer();
 
 			// takeScreenshot performs the GPU readback (new render pipeline) and hands us a CPU-side
 			// NativeImage via a callback that may fire after this frame, so coordinate via a future.
