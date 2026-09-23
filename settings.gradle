@@ -24,14 +24,22 @@ plugins {
 
 stonecutter {
 	create(rootProject) {
-		// One node per shipped Minecraft version. Source is shared; per-version API
-		// differences are handled with Stonecutter //? comments. Each node reads its
-		// Minecraft / Fabric API versions from versions/<version>/gradle.properties.
+		// One node per shipped Minecraft version and loader. Source is shared; per-version API
+		// differences are handled with Stonecutter //? comments. Each node reads its Minecraft /
+		// loader versions from versions/<node>/gradle.properties.
+		// Fabric nodes are named after the Minecraft version and built by build.gradle.
 		versions(
 			'1.21.1', '1.21.2', '1.21.3', '1.21.4', '1.21.5',
 			'1.21.6', '1.21.7', '1.21.8', '1.21.9', '1.21.10',
 			'1.21.11', '26.1.2', '26.2', '26.3'
 		)
+		// NeoForge nodes are named <minecraft>-neoforge and built by build.neoforge.gradle. 1.21.2 is
+		// skipped: NeoForge only published two abandoned betas for it before moving to 1.21.3.
+		[
+			'1.21.1', '1.21.3', '1.21.4', '1.21.5', '1.21.6',
+			'1.21.7', '1.21.8', '1.21.9', '1.21.10', '1.21.11',
+			'26.1.2', '26.2', '26.3'
+		].each { mc -> version("${mc}-neoforge".toString(), mc).buildscript('build.neoforge.gradle') }
 		vcsVersion = '1.21.8'
 	}
 }
