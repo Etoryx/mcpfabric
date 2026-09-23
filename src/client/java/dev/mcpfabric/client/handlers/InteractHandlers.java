@@ -34,13 +34,13 @@ public final class InteractHandlers {
 			JsonObject o = new JsonObject();
 			if ("instant".equals(mode)) {
 				boolean broke = gm.destroyBlock(pos);
-				p.swing(InteractionHand.MAIN_HAND);
+				swingAttack(p);
 				o.addProperty("broke", broke);
 				o.addProperty("mode", "instant");
 			} else {
 				gm.startDestroyBlock(pos, face);
 				BotController.get().startMining(pos, face);
-				p.swing(InteractionHand.MAIN_HAND);
+				swingAttack(p);
 				o.addProperty("started", true);
 				o.addProperty("mode", "survival");
 				o.addProperty("note", "Mining continues each tick; poll get_block to confirm it broke.");
@@ -60,7 +60,7 @@ public final class InteractHandlers {
 					pos.getZ() + 0.5 + face.getStepZ() * 0.5);
 			BlockHitResult hit = new BlockHitResult(hitLoc, face, pos, false);
 			InteractionResult result = gm.useItemOn(p, InteractionHand.MAIN_HAND, hit);
-			p.swing(InteractionHand.MAIN_HAND);
+			swingUse(p);
 			JsonObject o = new JsonObject();
 			o.addProperty("result", String.valueOf(result));
 			return o;
@@ -82,7 +82,7 @@ public final class InteractHandlers {
 			LocalPlayer p = ClientMc.player();
 			Entity e = findEntity(ctx.getString("uuid"));
 			gm.attack(p, e);
-			p.swing(InteractionHand.MAIN_HAND);
+			swingAttack(p);
 			return Json.ok("attacked " + e.getName().getString());
 		}));
 
@@ -101,11 +101,31 @@ public final class InteractHandlers {
 		}));
 
 		router.register("interact.dropItem", ctx -> ClientMc.call(() -> {
+			requireControl();
 			LocalPlayer p = ClientMc.player();
 			boolean whole = ctx.optBool("wholeStack", false);
+			//? if <26.3 {
 			p.drop(whole);
+			//?} else
+			/*ClientMc.gameMode().dropItem(p, whole);*/
 			return Json.ok(whole ? "dropped stack" : "dropped one");
 		}));
+	}
+
+	/** Main-hand swing for attacking / mining. 26.3 made the swing animation an explicit, per-item argument. */
+	private static void swingAttack(LocalPlayer p) {
+		//? if <26.3 {
+		p.swing(InteractionHand.MAIN_HAND);
+		//?} else
+		/*p.swing(InteractionHand.MAIN_HAND, p.getMainHandItem().getAttackAnimation(), false);*/
+	}
+
+	/** Main-hand swing for using an item on a block. */
+	private static void swingUse(LocalPlayer p) {
+		//? if <26.3 {
+		p.swing(InteractionHand.MAIN_HAND);
+		//?} else
+		/*p.swing(InteractionHand.MAIN_HAND, p.getMainHandItem().getInteractAnimation(), false);*/
 	}
 
 	private static void requireControl() throws RpcException {

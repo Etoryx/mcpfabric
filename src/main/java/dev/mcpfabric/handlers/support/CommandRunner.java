@@ -45,10 +45,16 @@ public final class CommandRunner {
 				4,
 				//?} else
 				/*net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER,*/
+				// 26.3 dropped the separate text name and entity arguments from this constructor.
+				//? if <26.3 {
 				"mcpfabric",
 				Component.literal("mcpfabric"),
 				server,
 				null).withCallback(callback);
+				//?} else {
+				/*Component.literal("mcpfabric"),
+				server).withCallback(callback);
+				*///?}
 		server.getCommands().performPrefixedCommand(source, command);
 		return new Result(command, success[0], resultValue[0], capture.messages);
 	}
