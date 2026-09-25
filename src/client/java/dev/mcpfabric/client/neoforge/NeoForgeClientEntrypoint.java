@@ -13,6 +13,7 @@ import net.neoforged.fml.common.Mod;
 import net.neoforged.neoforge.client.event.ClientChatReceivedEvent;
 import net.neoforged.neoforge.client.event.ClientTickEvent;
 import net.neoforged.neoforge.common.NeoForge;
+import net.neoforged.neoforge.event.GameShuttingDownEvent;
 
 import java.util.UUID;
 
@@ -30,10 +31,15 @@ public final class NeoForgeClientEntrypoint {
 
 		NeoForge.EVENT_BUS.addListener(NeoForgeClientEntrypoint::onClientTick);
 		NeoForge.EVENT_BUS.addListener(EventPriority.LOWEST, NeoForgeClientEntrypoint::onChat);
+		NeoForge.EVENT_BUS.addListener(NeoForgeClientEntrypoint::onGameShuttingDown);
 	}
 
 	private static void onClientTick(ClientTickEvent.Post event) {
 		McpFabricClient.onClientTick(Minecraft.getInstance());
+	}
+
+	private static void onGameShuttingDown(GameShuttingDownEvent event) {
+		McpFabricClient.onClientStopping();
 	}
 
 	// ClientChatReceivedEvent.System (game / action-bar messages) is a subclass, so one listener

@@ -42,4 +42,9 @@ public final class McpFabricClient {
 	public static void onClientTick(Minecraft client) {
 		BotController.get().onClientTick(client);
 	}
+
+	/** The game is closing: stop the bridge so the JVM can exit (issue #24). */
+	public static void onClientStopping() {
+		McpFabric.stopBridge();
+	}
 }
