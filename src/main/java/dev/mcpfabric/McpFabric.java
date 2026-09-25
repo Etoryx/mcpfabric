@@ -98,6 +98,16 @@ public final class McpFabric {
 		// Keep the bridge up across integrated-server restarts on the client; only stop it on a
 		// dedicated server shutdown.
 		if (!platform.isClient()) {
+			stopBridge();
+		}
+	}
+
+	/**
+	 * Stops the HTTP bridge. Its JDK dispatcher thread is not a daemon, so the JVM cannot exit
+	 * until this runs: the dedicated server calls it on stop, the client when the game closes.
+	 */
+	public static void stopBridge() {
+		if (httpServer != null) {
 			httpServer.stop();
 		}
 	}
