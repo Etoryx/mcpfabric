@@ -6,6 +6,16 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.4.1] - 2026-09-25
+
+This is the first Fabric release since 0.3.0, so it also includes the 0.4.0 changes (see the 0.4.0
+section of CHANGELOG.md): the Platform layer and `"loader"` in `info.status`.
+
+### Fixed
+- Closing the game no longer crashes with `Watchdog (Client shutdown from post-main)`. The client
+  now stops the HTTP bridge when it shuts down. The bridge's non-daemon `HTTP-Dispatcher` thread
+  had been keeping the JVM alive until the shutdown watchdog fired (#24). Fabric and NeoForge.
+
 ## [0.4.0] - 2026-09-23
 
 ### Added
