@@ -10,6 +10,7 @@ import dev.mcpfabric.bridge.RpcContext;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
 import dev.mcpfabric.handlers.support.CommandRunner;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.handlers.support.Levels;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
@@ -174,6 +175,7 @@ public final class WorldHandlers {
 			int y = (int) Math.floor(ctx2.getDouble("y"));
 			int z = (int) Math.floor(ctx2.getDouble("z"));
 			String block = ctx2.getString("blockId");
+			Gates.dataTags(block);
 			return CommandRunner.run(server, level, "setblock " + x + " " + y + " " + z + " " + block).toJson();
 		}));
 
@@ -183,6 +185,7 @@ public final class WorldHandlers {
 			JsonObject from = ctx2.getObject("from");
 			JsonObject to = ctx2.getObject("to");
 			String block = ctx2.getString("blockId");
+			Gates.dataTags(block);
 			String cmd = String.format("fill %d %d %d %d %d %d %s",
 					from.get("x").getAsInt(), from.get("y").getAsInt(), from.get("z").getAsInt(),
 					to.get("x").getAsInt(), to.get("y").getAsInt(), to.get("z").getAsInt(), block);

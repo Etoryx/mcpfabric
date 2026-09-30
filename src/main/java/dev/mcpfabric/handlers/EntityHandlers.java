@@ -10,6 +10,7 @@ import dev.mcpfabric.bridge.RpcContext;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
 import dev.mcpfabric.handlers.support.CommandRunner;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.handlers.support.Levels;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
@@ -87,6 +88,7 @@ public final class EntityHandlers {
 			String type = ctx.getString("type");
 			double x = ctx.getDouble("x"), y = ctx.getDouble("y"), z = ctx.getDouble("z");
 			String nbt = ctx.optString("nbt", null);
+			Gates.dataTags(nbt);
 			String cmd = "summon " + type + " " + x + " " + y + " " + z + (nbt != null ? " " + nbt : "");
 			return CommandRunner.run(server, level, cmd).toJson();
 		}));

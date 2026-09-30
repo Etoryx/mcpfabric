@@ -7,6 +7,7 @@ import com.mojang.blaze3d.platform.NativeImage;
 import dev.mcpfabric.McpFabric;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.client.ClientMc;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Screenshot;
@@ -76,6 +77,7 @@ public final class VisionHandlers {
 		});
 
 		router.register("vision.describeScene", ctx -> ClientMc.call(() -> {
+			Gates.vision();
 			LocalPlayer p = ClientMc.player();
 			ClientLevel level = ClientMc.level();
 			Minecraft mc = ClientMc.mc();

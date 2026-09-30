@@ -3,6 +3,7 @@ package dev.mcpfabric.client.handlers;
 import dev.mcpfabric.bridge.Json;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.client.ClientMc;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -17,6 +18,7 @@ public final class InventoryHandlers {
 
 	public static void register(RpcRouter router) {
 		router.register("inventory.selectHotbar", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			int slot = ctx.getInt("slot");
 			if (slot < 0 || slot > 8) throw RpcException.badRequest("Hotbar slot must be 0-8.");
 			LocalPlayer p = ClientMc.player();
@@ -29,6 +31,7 @@ public final class InventoryHandlers {
 		}));
 
 		router.register("inventory.dropSlot", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			int menuSlot = toMenuSlot(ctx.getInt("slot"));
@@ -38,6 +41,7 @@ public final class InventoryHandlers {
 		}));
 
 		router.register("inventory.swapSlots", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			int a = toMenuSlot(ctx.getInt("slotA"));

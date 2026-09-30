@@ -338,7 +338,7 @@ export const TOOLS: ToolDef[] = [
     method: "chat.send",
     title: "Send chat message",
     description:
-      "Send a chat message. On a client this is sent as the local player (a leading '/' runs a command as that player); on a dedicated server it is broadcast.",
+      "Send a chat message. On a client this is sent as the local player (a leading '/' runs a command as that player, and needs enableCommands); on a dedicated server it is broadcast.",
     inputSchema: { message: z.string() },
   },
   {
