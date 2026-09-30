@@ -457,7 +457,7 @@ export const TOOLS: ToolDef[] = [
     method: "interact.breakBlock",
     title: "Break a block",
     description:
-      "Client-only. Break the block at a position. mode 'instant' breaks it at once: in creative through the normal break packet; in survival only on an integrated server with world writes enabled (the server breaks it). 'broke' is what the integrated server reports (null on a remote server). 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks).",
+      "Client-only. Break the block at a position. mode 'instant' breaks it at once: in creative through the normal break packet; in survival only on an integrated server with world writes enabled (the server breaks it). 'broke' is what the integrated server reports (null on a remote server). 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks); it stops by itself when the block cannot break and reports a mining_finished event (see poll_events).",
     inputSchema: { ...vec3(), mode: z.enum(["instant", "survival"]).optional().default("survival") },
     annotations: WRITE,
   },
