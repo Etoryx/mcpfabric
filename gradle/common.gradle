@@ -32,6 +32,26 @@ tasks.withType(JavaCompile).configureEach {
 	it.options.encoding = "UTF-8"
 }
 
+// Unit tests (src/test/java) for code that needs no running game, such as the HTTP bridge. They run
+// for every node as part of `build`, so chiseledBuild checks them against each Minecraft version.
+repositories {
+	mavenCentral {
+		content { includeGroupByRegex 'org\\.(junit|opentest4j|apiguardian)(\\..*)?|com\\.google\\.code\\.gson' }
+	}
+}
+
+dependencies {
+	testImplementation platform('org.junit:junit-bom:5.14.2')
+	testImplementation 'org.junit.jupiter:junit-jupiter'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+	// The bridge speaks Gson; NeoForge nodes do not put Minecraft's libraries on the test classpath.
+	testImplementation 'com.google.code.gson:gson:2.11.0'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+}
+
 jar {
 	def projectName = rootProject.name
 	inputs.property "projectName", projectName
