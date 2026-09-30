@@ -205,7 +205,7 @@ export const TOOLS: ToolDef[] = [
     description:
       "List entities, optionally filtered by a sphere (center+radius), entity type ids, living-only, and whether to include players. Returns position, type, name, health and key flags for each.",
     inputSchema: {
-      center: z.object(vec3()).optional().describe("Center of the search sphere; omit to use the player's position."),
+      center: z.object(vec3()).optional().describe("Center of the search sphere; omit to use the position of the only player in that dimension (the world spawn when there is none or several; centerSource says which)."),
       radius: z.number().min(1).max(256).optional().default(32).describe("Search radius in blocks."),
       types: z.array(z.string()).optional().describe('Entity type ids to match, e.g. ["minecraft:zombie","minecraft:cow"].'),
       includePlayers: z.boolean().optional().default(true),
