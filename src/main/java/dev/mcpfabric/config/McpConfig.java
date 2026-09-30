@@ -22,7 +22,10 @@ public final class McpConfig {
 	public int port = 25599;
 	/** Shared secret required in the Authorization: Bearer header. */
 	public String token = "";
-	/** When false, the bridge accepts unauthenticated requests (loopback only — use with care). */
+	/**
+	 * When false, any program on this machine can use the bridge without the token. Web pages are still
+	 * refused (they send an Origin header), but binding to loopback alone would not stop them.
+	 */
 	public boolean requireAuth = true;
 
 	/** Max time a single RPC may block the game thread before timing out. */
