@@ -20,6 +20,10 @@ import { isLocalRequest } from "./local-request.js";
 
 const PKG_VERSION = "0.1.0";
 
+/** HTTP transport: sessions idle this long are closed, and at most MAX_HTTP_SESSIONS stay open. */
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+const MAX_HTTP_SESSIONS = 32;
+
 function log(...args: unknown[]): void {
   // stderr only — stdout is reserved for the stdio transport.
   console.error("[mcpfabric]", ...args);
@@ -120,7 +124,19 @@ async function runStdio(bridge: BridgeClient): Promise<void> {
 
 async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
   // Stateful streamable-HTTP: one transport+server per session id.
-  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
+  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport; lastSeen: number }>();
+
+  // Close sessions whose client went away without DELETE; otherwise they would stay open forever.
+  const sweep = setInterval(() => {
+    const now = Date.now();
+    for (const [id, entry] of sessions) {
+      if (now - entry.lastSeen > SESSION_IDLE_MS) {
+        sessions.delete(id);
+        void entry.transport.close();
+      }
+    }
+  }, 60_000);
+  sweep.unref();
 
   async function readBody(req: http.IncomingMessage): Promise<unknown> {
     const chunks: Buffer[] = [];
@@ -147,7 +163,12 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
     const body = req.method === "POST" ? await readBody(req) : undefined;
 
     let entry = sid ? sessions.get(sid) : undefined;
+    if (entry) entry.lastSeen = Date.now();
     if (!entry) {
+      if (sessions.size >= MAX_HTTP_SESSIONS) {
+        res.writeHead(503, { "Content-Type": "text/plain" }).end("Too many open MCP sessions; close one (DELETE) or wait for idle ones to expire.");
+        return;
+      }
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (id: string) => {
@@ -159,7 +180,7 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
       };
       const server = buildServer(bridge);
       await server.connect(transport);
-      entry = { server, transport };
+      entry = { server, transport, lastSeen: Date.now() };
     }
     await entry.transport.handleRequest(req, res, body);
   });
