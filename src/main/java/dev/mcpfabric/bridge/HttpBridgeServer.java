@@ -132,20 +132,27 @@ public final class HttpBridgeServer {
 		if (fromBrowser(ex) || !authorize(ex)) return;
 
 		Set<String> filter = parseTypeFilter(ex.getRequestURI().getQuery());
+		// Each stream holds a worker thread for as long as the client stays connected.
+		SseHub.Subscriber sub = sse.register(filter);
+		if (sub == null) {
+			respond(ex, 503, Json.GSON.toJson(Json.envelopeError("too_many_streams",
+					"At most " + SseHub.MAX_SUBSCRIBERS + " event streams may be open at once.", null)));
+			return;
+		}
 		ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
 		ex.getResponseHeaders().set("Cache-Control", "no-cache");
 		ex.getResponseHeaders().set("Connection", "keep-alive");
-		ex.sendResponseHeaders(200, 0); // 0 => streaming, connection stays open
-
-		SseHub.Subscriber sub = sse.register(filter);
-		try (OutputStream os = ex.getResponseBody()) {
-			writeSse(os, ": connected, lastEventId=" + events.lastId() + "\n\n");
-			while (true) {
-				String event = sub.poll(15000);
-				if (event == null) {
-					writeSse(os, ": keepalive\n\n"); // comment heartbeat
-				} else {
-					writeSse(os, "data: " + event + "\n\n");
+		try {
+			ex.sendResponseHeaders(200, 0); // 0 => streaming, connection stays open
+			try (OutputStream os = ex.getResponseBody()) {
+				writeSse(os, ": connected, lastEventId=" + events.lastId() + "\n\n");
+				while (true) {
+					String event = sub.poll(15000);
+					if (event == null) {
+						writeSse(os, ": keepalive\n\n"); // comment heartbeat
+					} else {
+						writeSse(os, "data: " + event + "\n\n");
+					}
 				}
 			}
 		} catch (IOException | InterruptedException closed) {
