@@ -12,13 +12,15 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 
 import { loadConfig, type ServerConfig } from "./config.js";
 import { BridgeClient, BridgeError, BridgeUnreachableError } from "./bridge.js";
 import { TOOLS, type ToolDef } from "./tools.js";
 import { isLocalRequest } from "./local-request.js";
 
-const PKG_VERSION = "0.1.0";
+// dist/index.js -> ../package.json, so the reported version always matches the published package.
+const PKG_VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
 
 /** HTTP transport: sessions idle this long are closed, and at most MAX_HTTP_SESSIONS stay open. */
 const SESSION_IDLE_MS = 30 * 60 * 1000;
@@ -105,10 +107,10 @@ function buildServer(bridge: BridgeClient): McpServer {
     { name: "mcpfabric", version: PKG_VERSION },
     {
       instructions:
-        "Control and observe a running Minecraft game (Fabric 1.21.x) through the mcpfabric mod. " +
+        "Control and observe a running Minecraft: Java Edition game (1.21.1 or newer, Fabric or NeoForge) through the mcpfabric mod. " +
         "Call get_status first to learn which side you are on and which capability groups are available. " +
-        "Client-side tools (get_self, control_*, interact_*, vision, navigation) drive the local player; " +
-        "server-side tools (players_*, run_command, world write) require an integrated or dedicated server.",
+        "Client-side tools (get_self, set_movement, look, break_block, place_block, use_item, screenshot, describe_scene, navigate_to, ...) drive the local player; " +
+        "server-side tools (list_players, teleport_player, run_command, set_block, fill_blocks, query_entities, ...) require an integrated or dedicated server.",
     },
   );
   registerTools(server, bridge);
