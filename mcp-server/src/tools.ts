@@ -474,7 +474,7 @@ export const TOOLS: ToolDef[] = [
     name: "use_item",
     method: "interact.useItem",
     title: "Use item / right-click",
-    description: "Client-only. Perform a right-click use with the held item on whatever is under the crosshair (or in air).",
+    description: "Client-only. Perform a right-click with the held item like the use key does: on the entity or block under the crosshair first, then the item on its own (e.g. eat, throw). 'target' says which one acted (entity, block or air).",
     inputSchema: {},
   },
   {

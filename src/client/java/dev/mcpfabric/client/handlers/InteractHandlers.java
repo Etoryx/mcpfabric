@@ -24,6 +24,8 @@ import net.minecraft.world.level.GameType;
 import net.minecraft.world.level.Level;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Objects;
@@ -174,10 +176,20 @@ public final class InteractHandlers {
 			requireControl();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			LocalPlayer p = ClientMc.player();
-			InteractionResult result = gm.useItem(p, InteractionHand.MAIN_HAND);
-			JsonObject o = new JsonObject();
-			o.addProperty("result", String.valueOf(result));
-			return o;
+			HitResult crosshair = ClientMc.mc().hitResult;
+			// Like a vanilla right-click: the entity or block under the crosshair first, the item on its own last.
+			if (crosshair instanceof EntityHitResult entityHit && ClientMc.canReachEntity(p, entityHit.getEntity(), 0.0)) {
+				InteractionResult result = interact(gm, p, entityHit.getEntity(), entityHit);
+				if (result.consumesAction()) return useResult("entity", result);
+			} else if (crosshair instanceof BlockHitResult blockHit && crosshair.getType() == HitResult.Type.BLOCK) {
+				InteractionResult result = gm.useItemOn(p, InteractionHand.MAIN_HAND, blockHit);
+				if (result.consumesAction()) {
+					swingUse(p);
+					return useResult("block", result);
+				}
+				if (InteractionResult.FAIL.equals(result)) return useResult("block", result);
+			}
+			return useResult("air", gm.useItem(p, InteractionHand.MAIN_HAND));
 		}));
 
 		router.register("interact.attackEntity", ctx -> {
@@ -282,6 +294,22 @@ public final class InteractHandlers {
 		boolean inReach = ClientMc.canReachBlock(p, pos, 1.0);
 		boolean holdingBlock = p.getMainHandItem().getItem() instanceof BlockItem;
 		return new Aim(ClientMc.level().dimension(), p.getUUID(), creative, inReach, p.blockInteractionRange(), holdingBlock);
+	}
+
+	/** Entity right-click. Before 26.1 vanilla tried the precise hit position first. */
+	private static InteractionResult interact(MultiPlayerGameMode gm, LocalPlayer p, Entity e, EntityHitResult hit) {
+		//? if <26.1 {
+		InteractionResult at = gm.interactAt(p, e, hit, InteractionHand.MAIN_HAND);
+		return at.consumesAction() ? at : gm.interact(p, e, InteractionHand.MAIN_HAND);
+		//?} else
+		/*return gm.interact(p, e, hit, InteractionHand.MAIN_HAND);*/
+	}
+
+	private static JsonObject useResult(String target, InteractionResult result) {
+		JsonObject o = new JsonObject();
+		o.addProperty("target", target);
+		o.addProperty("result", String.valueOf(result));
+		return o;
 	}
 
 	/** Main-hand swing for attacking / mining. 26.3 made the swing animation an explicit, per-item argument. */
