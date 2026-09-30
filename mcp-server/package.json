@@ -12,12 +12,13 @@
   ],
   "scripts": {
     "build": "tsc",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "test": "tsc -p tsconfig.test.json && node --test \".test-build/test/*.test.js\"",
     "start": "node dist/index.js",
     "dev": "node --experimental-strip-types --watch src/index.ts"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22.16"
   },
   "keywords": [
     "mcp",

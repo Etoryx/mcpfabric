@@ -6,6 +6,25 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+### Added
+- **Agent runtime** in the MCP server ([docs/AGENT.md](docs/AGENT.md)). Everything is stored per
+  world in SQLite and survives restarts:
+  - long-term memory with full-text search, ranked by proximity and recency, plus re-verification of
+    remembered blocks against the live world;
+  - a persistent goal tree;
+  - a chunk map with an ASCII view and frontier exploration;
+  - a crafting planner over the game's own (including modded) recipes;
+  - background jobs `travel_to`, `explore`, `collect_blocks` and `craft_item`, which stop when
+    health gets low and fight back against hostile mobs in melee range.
+- New client RPCs for the runtime, working on any server: `session.info`, `perception.scan`,
+  `perception.blocks`, `perception.entities`, `container.open/state/click/transfer/close`, `recipes.query`, `craft.place`
+  and `interact.stopBreaking`. `session.info` also works on dedicated servers.
+- `info.capabilities` reports the new `perception`, `containers` and `recipes` groups.
+
+### Changed
+- The MCP server now requires Node.js ≥ 22.16 (built-in `node:sqlite` with FTS5). CI runs it on
+  Node 24 along with the new unit tests.
+
 ## [0.4.1] - 2026-09-25
 
 This is the first Fabric release since 0.3.0, so it also includes the 0.4.0 changes (see the 0.4.0

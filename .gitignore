@@ -39,3 +39,6 @@ dist/
 
 # mcpfabric runtime config (contains auth token)
 mcpfabric.config.json
+
+# mcp-server compiled tests
+.test-build/

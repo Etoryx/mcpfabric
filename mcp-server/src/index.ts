@@ -16,6 +16,8 @@ import { randomUUID } from "node:crypto";
 import { loadConfig, type ServerConfig } from "./config.js";
 import { BridgeClient, BridgeError, BridgeUnreachableError } from "./bridge.js";
 import { TOOLS, type ToolDef } from "./tools.js";
+import { AgentRuntime, defaultDbPath } from "./agent/runtime.js";
+import { AGENT_TOOLS, AgentSession } from "./agent/tools.js";
 
 const PKG_VERSION = "0.1.0";
 
@@ -95,29 +97,58 @@ function registerTools(server: McpServer, bridge: BridgeClient): void {
   }
 }
 
-function buildServer(bridge: BridgeClient): McpServer {
+function registerAgentTools(server: McpServer, runtime: AgentRuntime): void {
+  const session = new AgentSession();
+  for (const def of AGENT_TOOLS) {
+    const config = {
+      title: def.title,
+      description: def.description,
+      inputSchema: def.inputSchema,
+      ...(def.annotations ? { annotations: def.annotations } : {}),
+    };
+    const handler = async (args: Record<string, unknown>): Promise<CallToolResult> => {
+      try {
+        const text = await def.run(runtime, session, args ?? {});
+        return { content: [{ type: "text", text }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    };
+    server.registerTool(def.name, config, handler);
+  }
+}
+
+const BASE_INSTRUCTIONS =
+  "Control and observe a running Minecraft game (Fabric or NeoForge) through the mcpfabric mod. " +
+  "Call get_status first to learn which side you are on and which capability groups are available. " +
+  "Client-side tools (get_self, control_*, interact_*, vision, navigation) drive the local player; " +
+  "server-side tools (players_*, run_command, world write) require an integrated or dedicated server.";
+
+const AGENT_INSTRUCTIONS =
+  " Agent runtime: memory, goals and the world map persist per world across sessions. Start with " +
+  "agent_brief; keep a goal tree (goal_add/goal_update); observe after moving; remember what matters " +
+  "and recall before searching the world again; use plan_craft before gathering. Multi-step actions " +
+  "(travel_to, explore, collect_blocks, craft_item) run as background jobs — follow them with job_status " +
+  "and do not drive movement manually while one runs.";
+
+function buildServer(bridge: BridgeClient, runtime: AgentRuntime | undefined): McpServer {
   const server = new McpServer(
     { name: "mcpfabric", version: PKG_VERSION },
-    {
-      instructions:
-        "Control and observe a running Minecraft game (Fabric 1.21.x) through the mcpfabric mod. " +
-        "Call get_status first to learn which side you are on and which capability groups are available. " +
-        "Client-side tools (get_self, control_*, interact_*, vision, navigation) drive the local player; " +
-        "server-side tools (players_*, run_command, world write) require an integrated or dedicated server.",
-    },
+    { instructions: BASE_INSTRUCTIONS + (runtime ? AGENT_INSTRUCTIONS : "") },
   );
   registerTools(server, bridge);
+  if (runtime) registerAgentTools(server, runtime);
   return server;
 }
 
-async function runStdio(bridge: BridgeClient): Promise<void> {
-  const server = buildServer(bridge);
+async function runStdio(bridge: BridgeClient, runtime: AgentRuntime | undefined): Promise<void> {
+  const server = buildServer(bridge, runtime);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   log(`stdio transport ready (bridge: ${process.env.MCPFABRIC_URL ?? "http://127.0.0.1:25599"})`);
 }
 
-async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
+async function runHttp(bridge: BridgeClient, runtime: AgentRuntime | undefined, cfg: ServerConfig): Promise<void> {
   // Stateful streamable-HTTP: one transport+server per session id.
   const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
 
@@ -152,7 +183,7 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
       transport.onclose = () => {
         if (transport.sessionId) sessions.delete(transport.sessionId);
       };
-      const server = buildServer(bridge);
+      const server = buildServer(bridge, runtime);
       await server.connect(transport);
       entry = { server, transport };
     }
@@ -174,10 +205,22 @@ async function main(): Promise<void> {
     .then((info) => log("connected to bridge:", JSON.stringify(info)))
     .catch((err) => log("bridge not reachable yet:", (err as Error).message));
 
+  let runtime: AgentRuntime | undefined;
+  if (cfg.agent) {
+    const dbPath = cfg.dataDir ? defaultDbPath({ MCPFABRIC_DATA_DIR: cfg.dataDir }) : defaultDbPath();
+    try {
+      runtime = new AgentRuntime(bridge, { dbPath, ...(cfg.world ? { worldOverride: cfg.world } : {}) });
+      log(`agent runtime ready (memory: ${dbPath})`);
+    } catch (err) {
+      // e.g. a Node build without node:sqlite: keep serving the plain bridge tools.
+      log("agent runtime disabled:", (err as Error).message);
+    }
+  }
+
   if (cfg.transport === "http") {
-    await runHttp(bridge, cfg);
+    await runHttp(bridge, runtime, cfg);
   } else {
-    await runStdio(bridge);
+    await runStdio(bridge, runtime);
   }
 }
 
