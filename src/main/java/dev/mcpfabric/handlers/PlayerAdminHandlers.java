@@ -40,9 +40,10 @@ public final class PlayerAdminHandlers {
 			String name = playerName(p);
 			double x = ctx.getDouble("x"), y = ctx.getDouble("y"), z = ctx.getDouble("z");
 			StringBuilder tp = new StringBuilder("teleport ").append(name).append(' ')
-					.append(x).append(' ').append(y).append(' ').append(z);
+					.append(CommandRunner.num(x)).append(' ').append(CommandRunner.num(y)).append(' ').append(CommandRunner.num(z));
 			if (ctx.has("yaw") && ctx.has("pitch")) {
-				tp.append(' ').append(ctx.getDouble("yaw")).append(' ').append(ctx.getDouble("pitch"));
+				tp.append(' ').append(CommandRunner.num(ctx.getDouble("yaw")))
+						.append(' ').append(CommandRunner.num(ctx.getDouble("pitch")));
 			}
 			String cmd = tp.toString();
 			if (ctx.has("dimension")) {

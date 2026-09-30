@@ -89,7 +89,8 @@ public final class EntityHandlers {
 			double x = ctx.getDouble("x"), y = ctx.getDouble("y"), z = ctx.getDouble("z");
 			String nbt = ctx.optString("nbt", null);
 			Gates.dataTags(nbt);
-			String cmd = "summon " + type + " " + x + " " + y + " " + z + (nbt != null ? " " + nbt : "");
+			String cmd = "summon " + type + " " + CommandRunner.num(x) + " " + CommandRunner.num(y) + " " + CommandRunner.num(z)
+					+ (nbt != null ? " " + nbt : "");
 			return CommandRunner.run(server, level, cmd).toJson();
 		}));
 
