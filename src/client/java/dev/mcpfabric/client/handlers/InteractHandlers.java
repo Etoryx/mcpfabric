@@ -100,6 +100,12 @@ public final class InteractHandlers {
 			return o;
 		}));
 
+		router.register("interact.stopBreaking", ctx -> ClientMc.call(() -> {
+			BotController.get().stopMining();
+			ClientMc.gameMode().stopDestroyBlock();
+			return Json.ok("stopped breaking");
+		}));
+
 		router.register("interact.dropItem", ctx -> ClientMc.call(() -> {
 			requireControl();
 			LocalPlayer p = ClientMc.player();
@@ -152,7 +158,8 @@ public final class InteractHandlers {
 		return d == null ? Direction.UP : d;
 	}
 
-	private static Direction faceToward(BlockPos pos, Vec3 eye) {
+	/** The face of {@code pos} that points toward {@code eye}. */
+	static Direction faceToward(BlockPos pos, Vec3 eye) {
 		double dx = eye.x - (pos.getX() + 0.5);
 		double dy = eye.y - (pos.getY() + 0.5);
 		double dz = eye.z - (pos.getZ() + 0.5);

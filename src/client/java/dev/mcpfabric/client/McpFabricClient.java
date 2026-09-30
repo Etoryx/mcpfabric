@@ -3,11 +3,14 @@ package dev.mcpfabric.client;
 import dev.mcpfabric.McpFabric;
 import dev.mcpfabric.bridge.RpcRouter;
 import dev.mcpfabric.client.handlers.ClientChatHandlers;
+import dev.mcpfabric.client.handlers.ContainerHandlers;
 import dev.mcpfabric.client.handlers.ControlHandlers;
 import dev.mcpfabric.client.handlers.InteractHandlers;
 import dev.mcpfabric.client.handlers.InventoryHandlers;
 import dev.mcpfabric.client.handlers.LocalPlayerHandlers;
 import dev.mcpfabric.client.handlers.NavHandlers;
+import dev.mcpfabric.client.handlers.PerceptionHandlers;
+import dev.mcpfabric.client.handlers.RecipeHandlers;
 import dev.mcpfabric.client.handlers.VisionHandlers;
 import net.minecraft.client.Minecraft;
 
@@ -33,6 +36,10 @@ public final class McpFabricClient {
 		InventoryHandlers.register(router);
 		VisionHandlers.register(router);
 		NavHandlers.register(router);
+		// Agent runtime support: world id, client-side perception, containers, recipes.
+		PerceptionHandlers.register(router);
+		ContainerHandlers.register(router);
+		RecipeHandlers.register(router);
 		ClientChatHandlers.register(router); // client variant of chat.send (speaks as local player)
 
 		McpFabric.LOGGER.info("[mcpfabric] client handlers registered");
