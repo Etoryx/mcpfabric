@@ -16,6 +16,7 @@ import { randomUUID } from "node:crypto";
 import { loadConfig, type ServerConfig } from "./config.js";
 import { BridgeClient, BridgeError, BridgeUnreachableError } from "./bridge.js";
 import { TOOLS, type ToolDef } from "./tools.js";
+import { isLocalRequest } from "./local-request.js";
 
 const PKG_VERSION = "0.1.0";
 
@@ -135,6 +136,10 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
   const httpServer = http.createServer(async (req, res) => {
     if (!req.url || !req.url.startsWith("/mcp")) {
       res.writeHead(404).end("Not found");
+      return;
+    }
+    if (!isLocalRequest(req.headers, cfg.httpPort)) {
+      res.writeHead(403, { "Content-Type": "text/plain" }).end("Forbidden: only local clients may use this server.");
       return;
     }
     const sessionId = req.headers["mcp-session-id"];
