@@ -8,6 +8,8 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
+import net.minecraft.world.entity.Entity;
 
 /** Null-safe access to client singletons + scheduling onto the render thread. */
 public final class ClientMc {
@@ -43,6 +45,25 @@ public final class ClientMc {
 		MultiPlayerGameMode g = started().gameMode;
 		if (g == null) throw RpcException.noClientPlayer();
 		return g;
+	}
+
+	/**
+	 * Whether the server accepts a block interaction at {@code pos} ({@code buffer} = its extra margin).
+	 * {@code canInteractWithBlock} became {@code isWithinBlockInteractionRange} in 1.21.11.
+	 */
+	public static boolean canReachBlock(LocalPlayer p, BlockPos pos, double buffer) {
+		//? if <1.21.11 {
+		return p.canInteractWithBlock(pos, buffer);
+		//?} else
+		/*return p.isWithinBlockInteractionRange(pos, buffer);*/
+	}
+
+	/** Entity counterpart of {@link #canReachBlock}; renamed the same way in 1.21.11. */
+	public static boolean canReachEntity(LocalPlayer p, Entity e, double buffer) {
+		//? if <1.21.11 {
+		return p.canInteractWithEntity(e, buffer);
+		//?} else
+		/*return p.isWithinEntityInteractionRange(e, buffer);*/
 	}
 
 	/** Run a task on the render thread and wait for the result. */

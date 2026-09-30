@@ -457,7 +457,7 @@ export const TOOLS: ToolDef[] = [
     method: "interact.breakBlock",
     title: "Break a block",
     description:
-      "Client-only. Break the block at a position. mode 'instant' uses creative-style instant break; 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks).",
+      "Client-only. Break the block at a position. mode 'instant' breaks it at once: in creative through the normal break packet; in survival only on an integrated server with world writes enabled (the server breaks it). 'broke' is what the integrated server reports (null on a remote server). 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks).",
     inputSchema: { ...vec3(), mode: z.enum(["instant", "survival"]).optional().default("survival") },
     annotations: WRITE,
   },
@@ -466,7 +466,7 @@ export const TOOLS: ToolDef[] = [
     method: "interact.placeBlock",
     title: "Place held block",
     description:
-      "Client-only. Place the currently held block against the given position/face (must be reachable). Equip the desired block first with select_hotbar_slot.",
+      "Client-only. Place the currently held block against the given position/face. Out of reach, nothing is sent (result OUT_OF_REACH). 'result' is the client's prediction; 'placed' is what the integrated server did (null on a remote server). Equip the desired block first with select_hotbar_slot.",
     inputSchema: { ...vec3(), face: z.enum(["up", "down", "north", "south", "east", "west"]).optional().default("up") },
     annotations: WRITE,
   },
@@ -481,7 +481,7 @@ export const TOOLS: ToolDef[] = [
     name: "attack_entity",
     method: "interact.attackEntity",
     title: "Attack entity",
-    description: "Client-only. Attack (left-click) an entity by UUID. Must be in reach.",
+    description: "Client-only. Attack (left-click) an entity by UUID. Out of reach, nothing is sent (result OUT_OF_REACH). With an integrated server, the answer reports what the server did: removed, and for living targets damaged and serverHealth.",
     inputSchema: { uuid: z.string() },
     annotations: WRITE,
   },
@@ -489,7 +489,7 @@ export const TOOLS: ToolDef[] = [
     name: "use_entity",
     method: "interact.useEntity",
     title: "Interact with entity",
-    description: "Client-only. Right-click/interact with an entity by UUID (e.g. trade with a villager, mount a horse).",
+    description: "Client-only. Right-click/interact with an entity by UUID (e.g. trade with a villager, mount a horse). Out of reach, nothing is sent (result OUT_OF_REACH); otherwise 'result' is the client's prediction.",
     inputSchema: { uuid: z.string() },
   },
   {
