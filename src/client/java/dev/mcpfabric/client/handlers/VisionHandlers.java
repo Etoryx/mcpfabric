@@ -15,6 +15,7 @@ import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.EntityHitResult;
@@ -25,11 +26,17 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Base64;
+import java.util.Comparator;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.TimeUnit;
 
 /** Vision: framebuffer screenshot (for vision models) and a structured scene description. */
 public final class VisionHandlers {
+	/** Cosine of the half-angle of the view cone used for visible entities (60 degrees, beyond the ray grid's corners). */
+	private static final double VIEW_CONE_COS = 0.5;
+	private static final int MAX_VISIBLE_ENTITIES = 16;
+
 	private VisionHandlers() {}
 
 	public static void register(RpcRouter router) {
@@ -128,6 +135,26 @@ public final class VisionHandlers {
 				}
 			}
 			o.add("rays", grid);
+
+			// Nearby entities in front of the player (within the ray grid's view cone) and not hidden behind blocks.
+			Vec3 look = p.getViewVector(1.0F);
+			List<Entity> visible = level.getEntities(p, p.getBoundingBox().inflate(maxDistance), e -> {
+				Vec3 to = e.getBoundingBox().getCenter().subtract(eye);
+				double distance = to.length();
+				return distance <= maxDistance && distance > 1.0e-6 && to.normalize().dot(look) >= VIEW_CONE_COS && p.hasLineOfSight(e);
+			});
+			visible.sort(Comparator.comparingDouble(e -> e.distanceTo(p)));
+			JsonArray entities = new JsonArray();
+			for (Entity e : visible.subList(0, Math.min(MAX_VISIBLE_ENTITIES, visible.size()))) {
+				JsonObject ej = new JsonObject();
+				ej.addProperty("uuid", e.getUUID().toString());
+				ej.addProperty("type", BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+				ej.addProperty("name", e.getName().getString());
+				ej.addProperty("distance", e.distanceTo(p));
+				ej.add("pos", vec(e.position()));
+				entities.add(ej);
+			}
+			o.add("entities", entities);
 			return o;
 		}));
 	}
