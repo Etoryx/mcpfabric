@@ -92,7 +92,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.getBlocks",
     title: "Scan a cuboid region",
     description:
-      "Scan all blocks in the cuboid between two corners (inclusive) and return their ids. Volume is capped (default 32768 blocks) to protect the server; air is omitted unless includeAir is true. Use for mapping a small area.",
+      "Scan all blocks in the cuboid between two corners (inclusive) and return their ids. Regions above 16,777,216 positions (e.g. 256x256x256) are refused to protect the server: split larger areas. The answer is capped at maxBlocks (default 32768, truncated=true when hit); air is omitted unless includeAir is true.",
     inputSchema: {
       from: z.object(vec3()).describe("One corner of the cuboid."),
       to: z.object(vec3()).describe("Opposite corner of the cuboid."),
@@ -107,7 +107,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.findBlocks",
     title: "Find nearby blocks by id",
     description:
-      "Search a spherical radius around a center point for blocks matching any of the given ids (e.g. minecraft:diamond_ore). Returns matches sorted by distance. Only searches loaded chunks.",
+      "Search a spherical radius around a center point for blocks matching any of the given ids (e.g. minecraft:diamond_ore). Searches outward from the center, so the nearest blocks are always covered; a scan budget of 250,000 positions may stop it early (truncated=true, searchedRadius tells how far it got). Returns matches sorted by distance. Only searches loaded chunks.",
     inputSchema: {
       center: z.object(vec3()).describe("Center of the search sphere."),
       radius: z.number().int().min(1).max(128).describe("Search radius in blocks."),
@@ -139,7 +139,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.raycast",
     title: "Raycast from a point",
     description:
-      "Cast a ray and report the first block and/or entity it hits. Provide either an explicit direction vector or yaw/pitch angles. Great for 'what am I looking at' and line-of-sight checks.",
+      "Cast a ray and report the first block and/or entity it hits. Blocks are hit by their outline shape, as the crosshair sees them (a ray above a bottom slab passes), and the ray stops at unloaded chunks. Provide either an explicit direction vector or yaw/pitch angles. Great for 'what am I looking at' and line-of-sight checks.",
     inputSchema: {
       origin: z.object(vec3()).describe("Ray start position (usually an eye position)."),
       direction: z.object(vec3()).optional().describe("Ray direction vector (need not be normalized). Use this OR yaw/pitch."),
