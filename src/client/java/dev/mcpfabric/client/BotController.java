@@ -1,6 +1,7 @@
 package dev.mcpfabric.client;
 
 import com.google.gson.JsonObject;
+import dev.mcpfabric.McpFabric;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Options;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
@@ -8,6 +9,7 @@ import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.List;
@@ -31,8 +33,11 @@ public final class BotController {
 	private int jumpOnceTicks = 0;
 
 	// survival mining
+	/** Extra ticks allowed beyond a block's expected break time before mining is given up. */
+	private static final int MINING_GRACE_TICKS = 40;
 	private BlockPos miningPos;
 	private Direction miningFace = Direction.UP;
+	private int miningTicks;
 
 	// navigation
 	private List<BlockPos> path;
@@ -70,6 +75,7 @@ public final class BotController {
 	public synchronized void startMining(BlockPos pos, Direction face) {
 		this.miningPos = pos;
 		this.miningFace = face;
+		this.miningTicks = 0;
 	}
 
 	public synchronized void stopMining() {
@@ -168,16 +174,47 @@ public final class BotController {
 	private void tickMining(Minecraft mc) {
 		if (miningPos == null) return;
 		MultiPlayerGameMode gm = mc.gameMode;
-		if (gm == null || mc.level == null) {
+		LocalPlayer p = mc.player;
+		if (gm == null || mc.level == null || p == null) {
 			miningPos = null;
 			return;
 		}
-		if (mc.level.getBlockState(miningPos).isAir()) {
+		BlockState state = mc.level.getBlockState(miningPos);
+		if (state.isAir()) {
 			gm.stopDestroyBlock();
-			miningPos = null;
+			finishMining("broken");
+			return;
+		}
+		// Mining used to go on forever when the block could not break: give up and say why.
+		if (!ClientMc.canReachBlock(p, miningPos, 1.0)) {
+			gm.stopDestroyBlock();
+			finishMining("out_of_reach");
+			return;
+		}
+		float perTick = state.getDestroyProgress(p, mc.level, miningPos);
+		if (perTick <= 0) {
+			gm.stopDestroyBlock();
+			finishMining("unbreakable");
+			return;
+		}
+		if (++miningTicks > Math.ceil(1.0 / perTick) + MINING_GRACE_TICKS) {
+			gm.stopDestroyBlock();
+			finishMining("no_progress");
 			return;
 		}
 		gm.continueDestroyBlock(miningPos, miningFace);
+	}
+
+	/** Ends survival mining and reports the outcome as a {@code mining_finished} event (see poll_events). */
+	private void finishMining(String result) {
+		JsonObject d = new JsonObject();
+		d.addProperty("x", miningPos.getX());
+		d.addProperty("y", miningPos.getY());
+		d.addProperty("z", miningPos.getZ());
+		d.addProperty("result", result);
+		d.addProperty("ticks", miningTicks);
+		miningPos = null;
+		McpFabric.events().emit("mining_finished", d);
 	}
 
 	private void steer(LocalPlayer p) {
