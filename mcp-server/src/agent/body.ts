@@ -159,7 +159,8 @@ export class Body {
     return r.entities;
   }
 
-  attack(uuid: string): Promise<unknown> {
+  /** Attack an entity; ok is false when it was out of reach and nothing was sent. */
+  attack(uuid: string): Promise<{ ok?: boolean }> {
     return this.bridge.call("interact.attackEntity", { uuid });
   }
 

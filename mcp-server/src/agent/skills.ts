@@ -81,7 +81,7 @@ export class Guard {
     const target = mobs.find((m) => m.distance <= 3.2 && !/creeper/.test(m.type));
     if (!target) return false;
     try {
-      await this.rt.body.attack(target.uuid);
+      if ((await this.rt.body.attack(target.uuid)).ok === false) return false; // out of reach
     } catch {
       return false;
     }
