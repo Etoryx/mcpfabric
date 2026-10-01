@@ -6,6 +6,10 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-10-01
+
+Fabric and NeoForge. Thanks to @heide-oficial for the fixes and hardening in #29, #30 and #31.
+
 ### Added
 - **Agent runtime** in the MCP server ([docs/AGENT.md](docs/AGENT.md)). Everything is stored per
   world in SQLite and survives restarts:
@@ -20,10 +24,48 @@ All notable changes to this project are documented here. The format is based on
   `perception.blocks`, `perception.entities`, `container.open/state/click/transfer/close`, `recipes.query`, `craft.place`
   and `interact.stopBreaking`. `session.info` also works on dedicated servers.
 - `info.capabilities` reports the new `perception`, `containers` and `recipes` groups.
+- `describe_scene` lists the entities in view. `navigation_status` reports `stuck` and
+  `ticksWithoutProgress` (#31).
+- `query_entities` returns equipment and key attributes of living entities, plus the `center` it
+  searched around and `centerSource`. `list_dimensions` says which dimension each player is in, and
+  `raycast` reports the face it hit (#31).
+- Survival mining gives up by itself when the block cannot break (out of reach, unbreakable, no
+  progress) and reports a `mining_finished` event (#30).
+- Unit tests: JUnit tests for the bridge run in every node's build, and a contract test keeps the
+  MCP tools and the mod's bridge methods in sync (#29, #31).
 
 ### Changed
 - The MCP server now requires Node.js ≥ 22.16 (built-in `node:sqlite` with FTS5). CI runs it on
   Node 24 along with the new unit tests.
+- `break_block`, `place_block` and `attack_entity` report what the integrated server actually did
+  (`broke`, `placed`, `damaged`, `serverHealth`). Out-of-reach actions are not sent at all and return
+  `OUT_OF_REACH` (#30).
+- `break_block` in `instant` mode in survival now needs an integrated server with world writes
+  enabled, where the server breaks the block. Before, it only predicted the break on the client (#30).
+- `use_item` behaves like the use key: it acts on the entity or block under the crosshair first,
+  then uses the item on its own (#30).
+- Every tool respects its capability lock. Movement, looking, inventory changes, vision, `/` commands
+  in chat and the player admin tools are refused when their lock is off. `get_status` lists
+  `inventory` under `enablePlayerControl` and `players_admin` under `enableCommands`. Block and
+  entity data (`{...}`) in `set_block`, `fill_blocks` and `summon_entity` needs `enableCommands` (#31).
+- `find_blocks` searches nearest-first and reports `searchedRadius`. `get_blocks_region` refuses
+  regions larger than 16,777,216 positions. `raycast` uses vanilla outline shapes and stops at
+  unloaded chunks (#31).
+- The MCP server reports its real package version, now kept in step with the mod (#29).
+
+### Fixed
+- A param of the wrong type is reported as `bad_request` naming the param, not as an internal
+  error (#31).
+- A game-thread task that times out before it starts is cancelled instead of running later (#31).
+- Coordinates in generated commands are no longer written in scientific notation (`1.0E-4`), which
+  commands reject (#31).
+
+### Security
+- The HTTP bridge refuses requests from web pages (any `Origin` header), requires
+  `Content-Type: application/json` for RPC calls, caps request bodies at 1 MiB and caps open event
+  streams at 16 (#29).
+- The MCP server's HTTP mode refuses non-local `Host` and `Origin` headers (DNS rebinding),
+  closes sessions idle for 30 minutes and caps them at 32 (#29).
 
 ## [0.4.1] - 2026-09-25
 
