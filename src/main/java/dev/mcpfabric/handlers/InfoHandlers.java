@@ -42,12 +42,12 @@ public final class InfoHandlers {
 			groups.addProperty("world_read", serverPresent);
 			groups.addProperty("world_write", serverPresent && McpFabric.config().enableWorldWrite);
 			groups.addProperty("entities", serverPresent);
-			groups.addProperty("players_admin", serverPresent);
+			groups.addProperty("players_admin", serverPresent && McpFabric.config().enableCommands);
 			groups.addProperty("command", serverPresent && McpFabric.config().enableCommands);
 			groups.addProperty("player_local", client);
 			groups.addProperty("control", client && McpFabric.config().enablePlayerControl);
 			groups.addProperty("interact", client && McpFabric.config().enablePlayerControl);
-			groups.addProperty("inventory", client);
+			groups.addProperty("inventory", client && McpFabric.config().enablePlayerControl);
 			groups.addProperty("chat", true);
 			groups.addProperty("vision", client && McpFabric.config().enableVision);
 			groups.addProperty("navigation", client && McpFabric.config().enablePlayerControl);
@@ -70,16 +70,18 @@ public final class InfoHandlers {
 		if (serverPresent) {
 			a.add("world_read");
 			a.add("entities");
-			a.add("players_admin");
 			if (McpFabric.config().enableWorldWrite) a.add("world_write");
-			if (McpFabric.config().enableCommands) a.add("command");
+			if (McpFabric.config().enableCommands) {
+				a.add("command");
+				a.add("players_admin");
+			}
 		}
 		if (client) {
 			a.add("player_local");
-			a.add("inventory");
 			a.add("perception");
 			a.add("recipes");
 			if (McpFabric.config().enablePlayerControl) {
+				a.add("inventory");
 				a.add("control");
 				a.add("interact");
 				a.add("navigation");
