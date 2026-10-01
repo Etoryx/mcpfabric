@@ -71,6 +71,7 @@ public final class McpFabric {
 		// chat.send to speak as the local player, so we must not also register the server variant.
 		if (!platform.isClient()) {
 			dev.mcpfabric.handlers.ChatHandlers.registerServerChat(router);
+			dev.mcpfabric.handlers.SessionHandlers.registerServer(router);
 		}
 
 		httpServer = new HttpBridgeServer(config, router, eventBus, sseHub);

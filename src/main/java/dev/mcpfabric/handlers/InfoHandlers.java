@@ -51,6 +51,9 @@ public final class InfoHandlers {
 			groups.addProperty("chat", true);
 			groups.addProperty("vision", client && McpFabric.config().enableVision);
 			groups.addProperty("navigation", client && McpFabric.config().enablePlayerControl);
+			groups.addProperty("perception", client);
+			groups.addProperty("containers", client && McpFabric.config().enablePlayerControl);
+			groups.addProperty("recipes", client);
 			groups.addProperty("events", true);
 
 			JsonObject o = new JsonObject();
@@ -75,11 +78,14 @@ public final class InfoHandlers {
 		}
 		if (client) {
 			a.add("player_local");
+			a.add("perception");
+			a.add("recipes");
 			if (McpFabric.config().enablePlayerControl) {
 				a.add("inventory");
 				a.add("control");
 				a.add("interact");
 				a.add("navigation");
+				a.add("containers");
 			}
 			if (McpFabric.config().enableVision) a.add("vision");
 		}

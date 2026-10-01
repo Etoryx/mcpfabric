@@ -103,7 +103,7 @@ for it), each named `mcpfabric-neoforge-<modVersion>+<mcVersion>.jar`:
 
 NeoForge for 1.21.6, 1.21.7, 1.21.9 and 26.3 only exists as beta builds.
 
-The MCP server needs **Node.js ≥ 20**.
+The MCP server needs **Node.js ≥ 22.16** (the agent runtime uses the built-in `node:sqlite`).
 
 ---
 
@@ -250,6 +250,12 @@ Then set `MCPFABRIC_TOKEN` in the server's environment.
 **navigation (client)** — `navigate_to` (A\*), `navigation_status`, `stop_navigation`
 **events** — `poll_events` (recent damage, deaths, chat, spawns, player join/leave)
 
+**agent runtime** ([docs/AGENT.md](docs/AGENT.md)) — persistent per-world memory, goals, map and background jobs:
+`agent_brief`, `observe`, `map_view`, `remember`, `recall`, `memory_update`, `memory_verify`,
+`goal_add`, `goal_update`, `goal_list`, `plan_craft`, `get_recipes`, `explore_next`,
+jobs `travel_to` / `explore` / `collect_blocks` / `craft_item` with `job_status` / `job_cancel`,
+and `open_container` / `container_transfer` / `close_container`
+
 Server tools require a running server (integrated on the client or dedicated). Client tools
 (`control` / `interact` / `vision` / `navigation` / `player` / `inventory`) only work on the client.
 Call `get_status` first — it reports which side you are on and which groups are available.
@@ -260,6 +266,8 @@ Call `get_status` first — it reports which side you are on and which groups ar
 
 - "Look around and describe what's nearby" → `get_self` + `describe_scene` (+ `screenshot` for a vision model).
 - "Walk to these coordinates and mine diamonds" → `find_blocks` → `navigate_to` → `break_block`.
+- "Get a stone pickaxe" → `plan_craft` → `collect_blocks` (logs, stone) → `craft_item`; progress is
+  kept in the goal tree and memory, so a later session resumes with `agent_brief`.
 - "What's happening on the server" → `list_players` + `poll_events`.
 - "Build a wall" → `fill_blocks` or a series of `set_block` / `run_command`.
 

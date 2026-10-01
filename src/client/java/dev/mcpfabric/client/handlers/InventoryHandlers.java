@@ -36,7 +36,7 @@ public final class InventoryHandlers {
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			int menuSlot = toMenuSlot(ctx.getInt("slot"));
 			boolean whole = ctx.optBool("wholeStack", true);
-			containerClick(gm, p.inventoryMenu.containerId, menuSlot, whole ? 1 : 0, true, p);
+			containerClick(gm, p.inventoryMenu.containerId, menuSlot, whole ? 1 : 0, "throw", p);
 			return Json.ok("dropped slot");
 		}));
 
@@ -47,22 +47,25 @@ public final class InventoryHandlers {
 			int a = toMenuSlot(ctx.getInt("slotA"));
 			int b = toMenuSlot(ctx.getInt("slotB"));
 			int id = p.inventoryMenu.containerId;
-			containerClick(gm, id, a, 0, false, p);
-			containerClick(gm, id, b, 0, false, p);
-			containerClick(gm, id, a, 0, false, p);
+			containerClick(gm, id, a, 0, "pickup", p);
+			containerClick(gm, id, b, 0, "pickup", p);
+			containerClick(gm, id, a, 0, "pickup", p);
 			return Json.ok("swapped");
 		}));
 	}
 
 	/**
-	 * Click a container slot. {@code handleInventoryMouseClick(..., ClickType, ...)} became
+	 * Click a slot of the open menu. {@code mode} is a click type name: {@code pickup},
+	 * {@code quick_move} (shift-click), {@code throw} or {@code swap}.
+	 * {@code handleInventoryMouseClick(..., ClickType, ...)} became
 	 * {@code handleContainerInput(..., ContainerInput, ...)} in 26.1 (same constant names).
 	 */
-	private static void containerClick(MultiPlayerGameMode gm, int containerId, int slot, int button, boolean throwItem, LocalPlayer p) {
+	static void containerClick(MultiPlayerGameMode gm, int containerId, int slot, int button, String mode, LocalPlayer p) {
+		String name = mode.toUpperCase(java.util.Locale.ROOT);
 		//? if <26.1 {
-		gm.handleInventoryMouseClick(containerId, slot, button, throwItem ? ClickType.THROW : ClickType.PICKUP, p);
+		gm.handleInventoryMouseClick(containerId, slot, button, ClickType.valueOf(name), p);
 		//?} else
-		/*gm.handleContainerInput(containerId, slot, button, throwItem ? net.minecraft.world.inventory.ContainerInput.THROW : net.minecraft.world.inventory.ContainerInput.PICKUP, p);*/
+		/*gm.handleContainerInput(containerId, slot, button, net.minecraft.world.inventory.ContainerInput.valueOf(name), p);*/
 	}
 
 	/**
