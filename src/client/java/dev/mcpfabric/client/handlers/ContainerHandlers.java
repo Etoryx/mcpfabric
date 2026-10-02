@@ -16,10 +16,14 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.MenuProvider;
 import net.minecraft.world.inventory.AbstractContainerMenu;
 import net.minecraft.world.inventory.ResultSlot;
 import net.minecraft.world.inventory.Slot;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.EnderChestBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
 
@@ -40,6 +44,16 @@ public final class ContainerHandlers {
 			LocalPlayer p = ClientMc.player();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			BlockPos pos = BlockPos.containing(ctx.getDouble("x"), ctx.getDouble("y"), ctx.getDouble("z"));
+			// The server ignores clicks beyond the interaction range; the client would only predict.
+			if (!ClientMc.canReachBlock(p, pos, 1.0)) {
+				throw RpcException.badRequest(String.format(Locale.ROOT,
+						"The block is beyond the interaction range (%.1f blocks); move closer first.", p.blockInteractionRange()));
+			}
+			// A right-click on any other block would use the held item on it (place a block, flip a lever).
+			if (!opensMenu(ClientMc.level(), pos)) {
+				throw RpcException.badRequest("The block at " + pos.toShortString() + " ("
+						+ BuiltInRegistries.BLOCK.getKey(ClientMc.level().getBlockState(pos).getBlock()) + ") does not open a menu.");
+			}
 			Vec3 eye = p.getEyePosition();
 			Direction face = InteractHandlers.faceToward(pos, eye);
 			Vec3 hit = new Vec3(pos.getX() + 0.5 + face.getStepX() * 0.5, pos.getY() + 0.5 + face.getStepY() * 0.5, pos.getZ() + 0.5 + face.getStepZ() * 0.5);
@@ -107,6 +121,15 @@ public final class ContainerHandlers {
 			}
 			return Json.ok("closed");
 		}));
+	}
+
+	/** Whether right-clicking the block opens a menu: containers, workstations, modded machines. */
+	static boolean opensMenu(Level level, BlockPos pos) {
+		BlockState state = level.getBlockState(pos);
+		if (state.getMenuProvider(level, pos) != null) return true;
+		if (level.getBlockEntity(pos) instanceof MenuProvider) return true;
+		// The ender chest opens the player's own ender inventory and has no menu provider.
+		return state.getBlock() instanceof EnderChestBlock;
 	}
 
 	static JsonObject state(LocalPlayer p) {

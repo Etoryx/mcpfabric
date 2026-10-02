@@ -6,6 +6,22 @@ All notable changes to this project are documented here. The format is based on
 
 ## [Unreleased]
 
+Thanks to @heide-oficial for the review in #33.
+
+### Changed
+- The agent database (`~/.mcpfabric/agent.db`) is created the first time an agent tool is called,
+  not when the MCP server starts.
+- A background job belongs to the MCP session that started it. Other sessions cannot see or cancel
+  it, and closing the session (or its HTTP idle timeout) cancels it. Every job also stops after
+  31 minutes.
+- New capability group `crafting` (`craft.place`), reported only with `enablePlayerControl`.
+  `recipes` now covers just the read-only `recipes.query`.
+
+### Fixed
+- `perception.blocks` returns `bad_request` instead of `internal` for a malformed `positions` item.
+- `container.open` refuses blocks out of reach and blocks that do not open a menu, instead of using
+  the held item on them (placing a block, flipping a lever).
+
 ## [0.5.0] - 2026-10-01
 
 Fabric and NeoForge. Thanks to @heide-oficial for the fixes and hardening in #29, #30 and #31.

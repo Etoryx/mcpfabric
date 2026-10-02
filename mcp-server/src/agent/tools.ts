@@ -3,6 +3,8 @@
  * server: they read and write long-term memory and start background jobs. Output is compact text
  * built for model context — ids to cite, distances, ages — rather than raw JSON.
  */
+import { randomUUID } from "node:crypto";
+
 import { z } from "zod";
 
 import type { BlockProbe } from "./body.js";
@@ -29,6 +31,8 @@ import { chunkOf, renderMap, type MapMarker } from "./worldmap.js";
 
 /** Per-MCP-session state. */
 export class AgentSession {
+  /** Owner id of the jobs this session starts. */
+  readonly id = randomUUID();
   readonly ledger = new SentLedger();
 }
 
@@ -79,13 +83,14 @@ async function hereOrNull(rt: AgentRuntime): Promise<Located | null> {
 
 async function startJob(
   rt: AgentRuntime,
+  session: AgentSession,
   kind: string,
   summary: string,
   wait: number | undefined,
   run: (ctx: JobContext) => Promise<string>,
 ): Promise<string> {
-  const job = rt.jobs.start(kind, summary, run);
-  const done = wait ? await rt.jobs.wait(job.id, wait * 1000) : job;
+  const job = rt.jobs.start(kind, summary, run, session.id);
+  const done = wait ? await rt.jobs.wait(job.id, wait * 1000, session.id) : job;
   const text = formatJob(done ?? job);
   return (done ?? job).state === "running" ? `${text}\n(poll job_status to follow it; job_cancel stops it)` : text;
 }
@@ -135,7 +140,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
         lines.push(goals.length ? "goals: all closed — add the next one with goal_add" : "goals: none yet — set one with goal_add");
       }
       const job = rt.jobs.running();
-      if (job) lines.push(formatJob(job));
+      if (job) lines.push(job.owner === undefined || job.owner === session.id ? formatJob(job) : "job: another MCP session is running one");
       const nearby = rt.memory.recall(world, { near: at, radius: 160, limit: 8, kinds: ["place", "container", "note", "skill"] });
       if (nearby.length > 0) {
         lines.push("nearby memory:");
@@ -549,7 +554,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       sprint: z.boolean().optional(),
       waitSeconds,
     },
-    run: async (rt, _s, args) => {
+    run: async (rt, session, args) => {
       const world = await rt.world();
       let target: { x: number; y: number; z: number; dim?: string };
       let label: string;
@@ -570,7 +575,7 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       } else {
         throw new Error("give x and z (and optionally y), or place");
       }
-      return startJob(rt, "travel", `to ${label}`, args.waitSeconds, (ctx) =>
+      return startJob(rt, session, "travel", `to ${label}`, args.waitSeconds, (ctx) =>
         travel(rt, ctx, target, { reach: args.reach, ...(args.sprint ? { sprint: true } : {}) }),
       );
     },
@@ -584,8 +589,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       legs: z.number().int().min(1).max(20).optional().default(4).describe("How many frontier targets to visit."),
       waitSeconds,
     },
-    run: async (rt, _s, args) =>
-      startJob(rt, "explore", `${args.legs} legs`, args.waitSeconds, (ctx) => explore(rt, ctx, { legs: args.legs })),
+    run: async (rt, session, args) =>
+      startJob(rt, session, "explore", `${args.legs} legs`, args.waitSeconds, (ctx) => explore(rt, ctx, { legs: args.legs })),
   },
   {
     name: "collect_blocks",
@@ -599,8 +604,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       maxSeconds: z.number().int().min(10).max(1800).optional().default(300),
       waitSeconds,
     },
-    run: async (rt, _s, args) =>
-      startJob(rt, "collect", `${args.count}× ${(args.blocks as string[]).map((b) => shortId(fullId(b))).join("/")}`, args.waitSeconds, (ctx) =>
+    run: async (rt, session, args) =>
+      startJob(rt, session, "collect", `${args.count}× ${(args.blocks as string[]).map((b) => shortId(fullId(b))).join("/")}`, args.waitSeconds, (ctx) =>
         collect(rt, ctx, { blocks: args.blocks, count: args.count, radius: args.radius, maxSeconds: args.maxSeconds }),
       ),
   },
@@ -614,8 +619,8 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       count: z.number().int().min(1).max(640).optional().default(1),
       waitSeconds,
     },
-    run: async (rt, _s, args) =>
-      startJob(rt, "craft", `${args.count}× ${shortId(fullId(args.item))}`, args.waitSeconds, (ctx) =>
+    run: async (rt, session, args) =>
+      startJob(rt, session, "craft", `${args.count}× ${shortId(fullId(args.item))}`, args.waitSeconds, (ctx) =>
         craft(rt, ctx, { item: args.item, count: args.count }),
       ),
   },
@@ -628,9 +633,10 @@ export const AGENT_TOOLS: AgentToolDef[] = [
       waitSeconds: z.number().min(0).max(50).optional().default(20),
     },
     annotations: READ,
-    run: async (rt, _s, args) => {
-      const job = await rt.jobs.wait(args.id, args.waitSeconds * 1000);
-      return job ? formatJob(job) : "no jobs yet";
+    run: async (rt, session, args) => {
+      const job = await rt.jobs.wait(args.id, args.waitSeconds * 1000, session.id);
+      if (job) return formatJob(job);
+      return rt.jobs.running() ? "no job of this session; another MCP session is running one" : "no jobs yet";
     },
   },
   {
@@ -638,9 +644,10 @@ export const AGENT_TOOLS: AgentToolDef[] = [
     title: "Cancel the job",
     description: "Stop the running job and release movement.",
     inputSchema: { id: z.number().int().optional() },
-    run: async (rt, _s, args) => {
-      const job = await rt.jobs.cancel(args.id);
-      return job ? `cancelled job #${job.id} (${job.kind})` : "no running job";
+    run: async (rt, session, args) => {
+      const job = await rt.jobs.cancel(args.id, session.id);
+      if (job) return `cancelled job #${job.id} (${job.kind})`;
+      return rt.jobs.running() ? "no running job of this session (another MCP session's job is running)" : "no running job";
     },
   },
 
