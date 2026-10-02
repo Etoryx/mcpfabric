@@ -10,8 +10,9 @@ work across many sessions:
 - **a crafting planner** over the game's own recipes, vanilla and modded;
 - **background jobs** that run multi-step actions without the model driving every tick.
 
-All of it is stored per world in one SQLite file (`~/.mcpfabric/agent.db`). A new conversation can
-pick up where the last one stopped. Call `agent_brief` first.
+All of it is stored per world in one SQLite file (`~/.mcpfabric/agent.db`). The file is created the
+first time an agent tool is called, not when the server starts. A new conversation can pick up
+where the last one stopped. Call `agent_brief` first.
 
 ## Where things live
 
@@ -43,7 +44,7 @@ tested without a game. The mod only gained what needs game access:
 | `perception.entities` | client | nearby dropped items, hostile/passive mobs and players, nearest first |
 | `container.open/state/click/transfer/close` | client | open a block's menu, read it, click or shift-click slots, move items in bulk |
 | `recipes.query` | client | recipes producing given items: type, result, one list of accepted ids per slot, `known` (unlocked) |
-| `craft.place` | client | place a recipe into the open crafting grid through the recipe book |
+| `craft.place` | client | place a recipe into the open crafting grid through the recipe book (needs `enablePlayerControl`; capability group `crafting`) |
 | `interact.stopBreaking` | client | stop an unfinished survival mining action |
 
 Perception reads the client's own copy of the world. It therefore works on vanilla multiplayer
@@ -68,6 +69,8 @@ so earlier failures inform later plans), `skill` (a procedure that worked).
 `travel_to`, `explore`, `collect_blocks` and `craft_item` start background jobs and return at once.
 You can also pass `waitSeconds` to block for a while. Follow a job with `job_status`, which
 long-polls, and stop it with `job_cancel`. Only one job runs at a time, because there is one body.
+A job belongs to the MCP session that started it: other sessions cannot see or cancel it, and
+closing the session (or its idle timeout in HTTP mode) cancels it. Any job stops after 31 minutes.
 
 Every job checks health before each step. It stops with a clear reason when health drops to the
 limit (6 by default), so the model can decide whether to retreat, eat or fight.

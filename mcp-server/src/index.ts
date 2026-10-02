@@ -106,6 +106,10 @@ function registerTools(server: McpServer, bridge: BridgeClient): void {
 
 function registerAgentTools(server: McpServer, runtime: AgentRuntime): void {
   const session = new AgentSession();
+  // A job must not keep moving the player after the session that started it is gone.
+  server.server.onclose = () => {
+    void runtime.jobs.cancelOwnedBy(session.id).catch(() => undefined);
+  };
   for (const def of AGENT_TOOLS) {
     const config = {
       title: def.title,
@@ -238,7 +242,7 @@ async function main(): Promise<void> {
     const dbPath = cfg.dataDir ? defaultDbPath({ MCPFABRIC_DATA_DIR: cfg.dataDir }) : defaultDbPath();
     try {
       runtime = new AgentRuntime(bridge, { dbPath, ...(cfg.world ? { worldOverride: cfg.world } : {}) });
-      log(`agent runtime ready (memory: ${dbPath})`);
+      log(`agent runtime ready (memory: ${dbPath}, opened on first use)`);
     } catch (err) {
       // e.g. a Node build without node:sqlite: keep serving the plain bridge tools.
       log("agent runtime disabled:", (err as Error).message);

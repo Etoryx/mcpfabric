@@ -1,4 +1,7 @@
 import assert from "node:assert/strict";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { test } from "node:test";
 import { z } from "zod";
 
@@ -171,4 +174,59 @@ test("job manager: one job at a time, cancel, wait", async () => {
   assert.equal(jobs.get(job.id)!.state, "cancelled");
   const quick = jobs.start("quick", "q", async () => "ok");
   assert.equal((await jobs.wait(quick.id, 1000))!.result, "ok");
+});
+
+test("job manager: jobs belong to their session; closing it cancels the job", async () => {
+  const jobs = new JobManager();
+  const job = jobs.start("wait", "sleep", (ctx) => ctx.sleep(10_000).then(() => "slept"), "a");
+  assert.equal(jobs.get(undefined, "b"), undefined);
+  assert.equal(jobs.get(job.id, "b"), undefined);
+  assert.equal(await jobs.cancel(undefined, "b"), undefined);
+  assert.throws(() => jobs.start("other", "x", async () => "x", "b"), /Another MCP session/);
+  assert.equal(await jobs.cancelOwnedBy("b"), undefined);
+  assert.equal(jobs.get(job.id, "a")!.state, "running");
+  await jobs.cancelOwnedBy("a");
+  assert.equal(jobs.get(job.id, "a")!.state, "cancelled");
+  assert.equal(jobs.get(undefined, "b"), undefined); // history stays private too
+});
+
+test("job manager: a job stops at the overall time limit", async () => {
+  const stopped: string[] = [];
+  const jobs = new JobManager(() => {}, async () => void stopped.push("released"), 60);
+  const job = jobs.start("wait", "forever", (ctx) => ctx.sleep(10_000).then(() => "slept"));
+  const done = await jobs.wait(job.id, 2000);
+  assert.equal(done!.state, "failed");
+  assert.match(done!.result!, /time limit/);
+  assert.deepEqual(stopped, ["released"]);
+});
+
+test("job tools are scoped to the session that started the job", async () => {
+  const world = new FakeWorld();
+  const rt = new AgentRuntime(world, { dbPath: ":memory:" });
+  const run = (session: AgentSession, name: string, args: Record<string, unknown> = {}) => {
+    const def = AGENT_TOOLS.find((t) => t.name === name)!;
+    return def.run(rt, session, z.object(def.inputSchema).parse(args));
+  };
+  const a = new AgentSession();
+  const b = new AgentSession();
+  const job = rt.jobs.start("wait", "sleep", (ctx) => ctx.sleep(10_000).then(() => "slept"), a.id);
+  assert.match(await run(b, "job_status", { waitSeconds: 0 }), /another MCP session/);
+  assert.match(await run(b, "job_cancel"), /another MCP session/);
+  assert.equal(rt.jobs.get(job.id)!.state, "running");
+  assert.match(await run(a, "job_cancel"), /cancelled job/);
+  rt.close();
+});
+
+test("the agent database is created on first use, not at startup", async () => {
+  const dir = mkdtempSync(join(tmpdir(), "mcpfabric-"));
+  try {
+    const dbPath = join(dir, "sub", "agent.db");
+    const rt = new AgentRuntime(new FakeWorld(), { dbPath, worldOverride: "w" });
+    assert.equal(existsSync(dbPath), false);
+    rt.memory.add("w", { kind: "note", title: "hello" });
+    assert.equal(existsSync(dbPath), true);
+    rt.close();
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
 });

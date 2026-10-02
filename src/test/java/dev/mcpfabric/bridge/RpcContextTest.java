@@ -34,6 +34,19 @@ class RpcContextTest {
 	}
 
 	@Test
+	void positionListsAreCheckedPerItem() throws RpcException {
+		assertBadRequest("positions", () -> ctx("{}").getVec3List("positions", 4));
+		assertBadRequest("positions", () -> ctx("{\"positions\": {\"x\": 1}}").getVec3List("positions", 4));
+		assertBadRequest("positions", () -> ctx("{\"positions\": [{}, {}, {}]}").getVec3List("positions", 2));
+		assertBadRequest("positions[1]", () -> ctx("{\"positions\": [{\"x\": 1, \"y\": 2, \"z\": 3}, 5]}").getVec3List("positions", 4));
+		assertBadRequest("positions[0].y", () -> ctx("{\"positions\": [{\"x\": 1, \"z\": 3}]}").getVec3List("positions", 4));
+		assertBadRequest("positions[0].x", () -> ctx("{\"positions\": [{\"x\": [], \"y\": 2, \"z\": 3}]}").getVec3List("positions", 4));
+		var list = ctx("{\"positions\": [{\"x\": 1, \"y\": 2, \"z\": 3}, {\"x\": -4, \"y\": 0.5, \"z\": 9}]}").getVec3List("positions", 4);
+		assertEquals(2, list.size());
+		assertArrayEquals(new double[] {-4, 0.5, 9}, list.get(1));
+	}
+
+	@Test
 	void nestedCoordinatesAreCheckedToo() throws RpcException {
 		assertBadRequest("from.z", () -> ctx("{\"from\": {\"x\": 1, \"y\": 2}}").getVec3("from"));
 		assertBadRequest("from.y", () -> ctx("{\"from\": {\"x\": 1, \"y\": \"up\", \"z\": 3}}").getVec3("from"));
