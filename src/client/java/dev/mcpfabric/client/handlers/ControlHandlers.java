@@ -3,6 +3,7 @@ package dev.mcpfabric.client.handlers;
 import com.google.gson.JsonObject;
 import dev.mcpfabric.bridge.Json;
 import dev.mcpfabric.bridge.RpcRouter;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.client.BotController;
 import dev.mcpfabric.client.ClientMc;
 import net.minecraft.client.player.LocalPlayer;
@@ -14,6 +15,7 @@ public final class ControlHandlers {
 
 	public static void register(RpcRouter router) {
 		router.register("control.setInput", ctx -> {
+			Gates.playerControl();
 			BotController.get().setMovement(
 					ctx.optBoolean("forward"),
 					ctx.optBoolean("back"),
@@ -31,11 +33,13 @@ public final class ControlHandlers {
 		});
 
 		router.register("control.jumpOnce", ctx -> {
+			Gates.playerControl();
 			BotController.get().jumpOnce();
 			return Json.ok("jump");
 		});
 
 		router.register("control.look", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			float yaw = p.getYRot();
 			float pitch = p.getXRot();
@@ -49,6 +53,7 @@ public final class ControlHandlers {
 		}));
 
 		router.register("control.lookAt", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			double dx = ctx.getDouble("x") - p.getX();
 			double dy = ctx.getDouble("y") - p.getEyeY();
@@ -61,6 +66,7 @@ public final class ControlHandlers {
 		}));
 
 		router.register("control.startUsing", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			ClientMc.mc().options.keyUse.setDown(true);
 			return Json.ok("using");
 		}));

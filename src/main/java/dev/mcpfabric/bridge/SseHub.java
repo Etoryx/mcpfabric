@@ -12,9 +12,14 @@ import java.util.concurrent.TimeUnit;
  * matching subscriber without blocking the emitting (game) thread.
  */
 public final class SseHub {
+	/** Each open stream holds one bridge worker thread, so their number is capped. */
+	public static final int MAX_SUBSCRIBERS = 16;
+
 	private final Set<Subscriber> subscribers = ConcurrentHashMap.newKeySet();
 
-	public Subscriber register(Set<String> typeFilter) {
+	/** Registers a new stream, or returns null when {@link #MAX_SUBSCRIBERS} are already open. */
+	public synchronized Subscriber register(Set<String> typeFilter) {
+		if (subscribers.size() >= MAX_SUBSCRIBERS) return null;
 		Subscriber s = new Subscriber(typeFilter);
 		subscribers.add(s);
 		return s;

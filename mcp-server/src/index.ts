@@ -12,12 +12,21 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { createRequire } from "node:module";
 
 import { loadConfig, type ServerConfig } from "./config.js";
 import { BridgeClient, BridgeError, BridgeUnreachableError } from "./bridge.js";
 import { TOOLS, type ToolDef } from "./tools.js";
+import { isLocalRequest } from "./local-request.js";
+import { AgentRuntime, defaultDbPath } from "./agent/runtime.js";
+import { AGENT_TOOLS, AgentSession } from "./agent/tools.js";
 
-const PKG_VERSION = "0.1.0";
+// dist/index.js -> ../package.json, so the reported version always matches the published package.
+const PKG_VERSION = (createRequire(import.meta.url)("../package.json") as { version: string }).version;
+
+/** HTTP transport: sessions idle this long are closed, and at most MAX_HTTP_SESSIONS stay open. */
+const SESSION_IDLE_MS = 30 * 60 * 1000;
+const MAX_HTTP_SESSIONS = 32;
 
 function log(...args: unknown[]): void {
   // stderr only — stdout is reserved for the stdio transport.
@@ -101,31 +110,72 @@ function registerTools(server: McpServer, bridge: BridgeClient): void {
   }
 }
 
-function buildServer(bridge: BridgeClient): McpServer {
+function registerAgentTools(server: McpServer, runtime: AgentRuntime): void {
+  const session = new AgentSession();
+  for (const def of AGENT_TOOLS) {
+    const config = {
+      title: def.title,
+      description: def.description,
+      inputSchema: def.inputSchema,
+      ...(def.annotations ? { annotations: def.annotations } : {}),
+    };
+    const handler = async (args: Record<string, unknown>): Promise<CallToolResult> => {
+      try {
+        const text = await def.run(runtime, session, args ?? {});
+        return { content: [{ type: "text", text }] };
+      } catch (err) {
+        return errorResult(err);
+      }
+    };
+    server.registerTool(def.name, config, handler);
+  }
+}
+
+const BASE_INSTRUCTIONS =
+  "Control and observe a running Minecraft: Java Edition game (1.21.1 or newer, Fabric or NeoForge) through the mcpfabric mod. " +
+  "Call get_status first to learn which side you are on and which capability groups are available. " +
+  "Client-side tools (get_self, set_movement, look, break_block, place_block, use_item, screenshot, describe_scene, navigate_to, ...) drive the local player; " +
+  "server-side tools (list_players, teleport_player, run_command, set_block, fill_blocks, query_entities, ...) require an integrated or dedicated server.";
+
+const AGENT_INSTRUCTIONS =
+  " Agent runtime: memory, goals and the world map persist per world across sessions. Start with " +
+  "agent_brief; keep a goal tree (goal_add/goal_update); observe after moving; remember what matters " +
+  "and recall before searching the world again; use plan_craft before gathering. Multi-step actions " +
+  "(travel_to, explore, collect_blocks, craft_item) run as background jobs — follow them with job_status " +
+  "and do not drive movement manually while one runs.";
+
+function buildServer(bridge: BridgeClient, runtime: AgentRuntime | undefined): McpServer {
   const server = new McpServer(
     { name: "mcpfabric", version: PKG_VERSION },
-    {
-      instructions:
-        "Control and observe a running Minecraft game (Fabric 1.21.x) through the mcpfabric mod. " +
-        "Call get_status first to learn which side you are on and which capability groups are available. " +
-        "Client-side tools (get_self, control_*, interact_*, vision, navigation) drive the local player; " +
-        "server-side tools (players_*, run_command, world write) require an integrated or dedicated server.",
-    },
+    { instructions: BASE_INSTRUCTIONS + (runtime ? AGENT_INSTRUCTIONS : "") },
   );
   registerTools(server, bridge);
+  if (runtime) registerAgentTools(server, runtime);
   return server;
 }
 
-async function runStdio(bridge: BridgeClient): Promise<void> {
-  const server = buildServer(bridge);
+async function runStdio(bridge: BridgeClient, runtime: AgentRuntime | undefined): Promise<void> {
+  const server = buildServer(bridge, runtime);
   const transport = new StdioServerTransport();
   await server.connect(transport);
   log(`stdio transport ready (bridge: ${process.env.MCPFABRIC_URL ?? "http://127.0.0.1:25599"})`);
 }
 
-async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
+async function runHttp(bridge: BridgeClient, runtime: AgentRuntime | undefined, cfg: ServerConfig): Promise<void> {
   // Stateful streamable-HTTP: one transport+server per session id.
-  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport }>();
+  const sessions = new Map<string, { server: McpServer; transport: StreamableHTTPServerTransport; lastSeen: number }>();
+
+  // Close sessions whose client went away without DELETE; otherwise they would stay open forever.
+  const sweep = setInterval(() => {
+    const now = Date.now();
+    for (const [id, entry] of sessions) {
+      if (now - entry.lastSeen > SESSION_IDLE_MS) {
+        sessions.delete(id);
+        void entry.transport.close();
+      }
+    }
+  }, 60_000);
+  sweep.unref();
 
   async function readBody(req: http.IncomingMessage): Promise<unknown> {
     const chunks: Buffer[] = [];
@@ -143,12 +193,21 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
       res.writeHead(404).end("Not found");
       return;
     }
+    if (!isLocalRequest(req.headers, cfg.httpPort)) {
+      res.writeHead(403, { "Content-Type": "text/plain" }).end("Forbidden: only local clients may use this server.");
+      return;
+    }
     const sessionId = req.headers["mcp-session-id"];
     const sid = Array.isArray(sessionId) ? sessionId[0] : sessionId;
     const body = req.method === "POST" ? await readBody(req) : undefined;
 
     let entry = sid ? sessions.get(sid) : undefined;
+    if (entry) entry.lastSeen = Date.now();
     if (!entry) {
+      if (sessions.size >= MAX_HTTP_SESSIONS) {
+        res.writeHead(503, { "Content-Type": "text/plain" }).end("Too many open MCP sessions; close one (DELETE) or wait for idle ones to expire.");
+        return;
+      }
       const transport = new StreamableHTTPServerTransport({
         sessionIdGenerator: () => randomUUID(),
         onsessioninitialized: (id: string) => {
@@ -158,9 +217,9 @@ async function runHttp(bridge: BridgeClient, cfg: ServerConfig): Promise<void> {
       transport.onclose = () => {
         if (transport.sessionId) sessions.delete(transport.sessionId);
       };
-      const server = buildServer(bridge);
+      const server = buildServer(bridge, runtime);
       await server.connect(transport);
-      entry = { server, transport };
+      entry = { server, transport, lastSeen: Date.now() };
     }
     await entry.transport.handleRequest(req, res, body);
   });
@@ -180,10 +239,22 @@ async function main(): Promise<void> {
     .then((info) => log("connected to bridge:", JSON.stringify(info)))
     .catch((err) => log("bridge not reachable yet:", (err as Error).message));
 
+  let runtime: AgentRuntime | undefined;
+  if (cfg.agent) {
+    const dbPath = cfg.dataDir ? defaultDbPath({ MCPFABRIC_DATA_DIR: cfg.dataDir }) : defaultDbPath();
+    try {
+      runtime = new AgentRuntime(bridge, { dbPath, ...(cfg.world ? { worldOverride: cfg.world } : {}) });
+      log(`agent runtime ready (memory: ${dbPath})`);
+    } catch (err) {
+      // e.g. a Node build without node:sqlite: keep serving the plain bridge tools.
+      log("agent runtime disabled:", (err as Error).message);
+    }
+  }
+
   if (cfg.transport === "http") {
-    await runHttp(bridge, cfg);
+    await runHttp(bridge, runtime, cfg);
   } else {
-    await runStdio(bridge);
+    await runStdio(bridge, runtime);
   }
 }
 

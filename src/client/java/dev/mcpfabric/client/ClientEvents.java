@@ -1,31 +1,31 @@
 package dev.mcpfabric.client;
 
 import com.google.gson.JsonObject;
-import dev.mcpfabric.events.EventBus;
-import net.fabricmc.fabric.api.client.message.v1.ClientReceiveMessageEvents;
+import dev.mcpfabric.McpFabric;
+import net.minecraft.network.chat.Component;
 
-/** Client-side event listeners that feed the shared {@link EventBus}. */
+/**
+ * Client-side events that feed the shared {@link dev.mcpfabric.events.EventBus}. The loader client
+ * entrypoint forwards its own chat events here.
+ */
 public final class ClientEvents {
 	private ClientEvents() {}
 
-	public static void register(EventBus events) {
-		ClientReceiveMessageEvents.GAME.register((message, overlay) -> {
-			JsonObject d = new JsonObject();
-			d.addProperty("text", message.getString());
-			d.addProperty("overlay", overlay);
-			events.emit("system_message", d);
-		});
+	/** A system / game message was shown (overlay = action bar). */
+	public static void onSystemMessage(Component message, boolean overlay) {
+		JsonObject d = new JsonObject();
+		d.addProperty("text", message.getString());
+		d.addProperty("overlay", overlay);
+		McpFabric.events().emit("system_message", d);
+	}
 
-		ClientReceiveMessageEvents.CHAT.register((message, signedMessage, sender, params, receptionTimestamp) -> {
-			JsonObject d = new JsonObject();
-			d.addProperty("text", message.getString());
-			if (sender != null) {
-				//? if <1.21.9 {
-				d.addProperty("sender", sender.getName());
-				//?} else
-				/*d.addProperty("sender", sender.name());*/
-			}
-			events.emit("chat", d);
-		});
+	/** A player chat message was received; {@code sender} is null when unknown. */
+	public static void onChatMessage(Component message, String sender) {
+		JsonObject d = new JsonObject();
+		d.addProperty("text", message.getString());
+		if (sender != null) {
+			d.addProperty("sender", sender);
+		}
+		McpFabric.events().emit("chat", d);
 	}
 }

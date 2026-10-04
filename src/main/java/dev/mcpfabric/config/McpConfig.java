@@ -3,7 +3,6 @@ package dev.mcpfabric.config;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import dev.mcpfabric.McpFabric;
-import net.fabricmc.loader.api.FabricLoader;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -23,7 +22,10 @@ public final class McpConfig {
 	public int port = 25599;
 	/** Shared secret required in the Authorization: Bearer header. */
 	public String token = "";
-	/** When false, the bridge accepts unauthenticated requests (loopback only — use with care). */
+	/**
+	 * When false, any program on this machine can use the bridge without the token. Web pages are still
+	 * refused (they send an Origin header), but binding to loopback alone would not stop them.
+	 */
 	public boolean requireAuth = true;
 
 	/** Max time a single RPC may block the game thread before timing out. */
@@ -38,7 +40,7 @@ public final class McpConfig {
 	public transient Path source;
 
 	public static McpConfig load() {
-		Path dir = FabricLoader.getInstance().getConfigDir();
+		Path dir = McpFabric.platform().configDir();
 		Path file = dir.resolve("mcpfabric.config.json");
 		McpConfig cfg;
 		if (Files.exists(file)) {
@@ -63,7 +65,7 @@ public final class McpConfig {
 	public void save() {
 		try {
 			if (source == null) {
-				source = FabricLoader.getInstance().getConfigDir().resolve("mcpfabric.config.json");
+				source = McpFabric.platform().configDir().resolve("mcpfabric.config.json");
 			}
 			Files.createDirectories(source.getParent());
 			Files.writeString(source, GSON.toJson(this));

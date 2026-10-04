@@ -92,7 +92,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.getBlocks",
     title: "Scan a cuboid region",
     description:
-      "Scan all blocks in the cuboid between two corners (inclusive) and return their ids. Volume is capped (default 32768 blocks) to protect the server; air is omitted unless includeAir is true. Use for mapping a small area.",
+      "Scan all blocks in the cuboid between two corners (inclusive) and return their ids. Regions above 16,777,216 positions (e.g. 256x256x256) are refused to protect the server: split larger areas. The answer is capped at maxBlocks (default 32768, truncated=true when hit); air is omitted unless includeAir is true.",
     inputSchema: {
       from: z.object(vec3()).describe("One corner of the cuboid."),
       to: z.object(vec3()).describe("Opposite corner of the cuboid."),
@@ -107,7 +107,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.findBlocks",
     title: "Find nearby blocks by id",
     description:
-      "Search a spherical radius around a center point for blocks matching any of the given ids (e.g. minecraft:diamond_ore). Returns matches sorted by distance. Only searches loaded chunks.",
+      "Search a spherical radius around a center point for blocks matching any of the given ids (e.g. minecraft:diamond_ore). Searches outward from the center, so the nearest blocks are always covered; a scan budget of 250,000 positions may stop it early (truncated=true, searchedRadius tells how far it got). Returns matches sorted by distance. Only searches loaded chunks.",
     inputSchema: {
       center: z.object(vec3()).describe("Center of the search sphere."),
       radius: z.number().int().min(1).max(128).describe("Search radius in blocks."),
@@ -139,7 +139,7 @@ export const TOOLS: ToolDef[] = [
     method: "world.raycast",
     title: "Raycast from a point",
     description:
-      "Cast a ray and report the first block and/or entity it hits. Provide either an explicit direction vector or yaw/pitch angles. Great for 'what am I looking at' and line-of-sight checks.",
+      "Cast a ray and report the first block and/or entity it hits. Blocks are hit by their outline shape, as the crosshair sees them (a ray above a bottom slab passes), and the ray stops at unloaded chunks. Provide either an explicit direction vector or yaw/pitch angles. Great for 'what am I looking at' and line-of-sight checks.",
     inputSchema: {
       origin: z.object(vec3()).describe("Ray start position (usually an eye position)."),
       direction: z.object(vec3()).optional().describe("Ray direction vector (need not be normalized). Use this OR yaw/pitch."),
@@ -205,7 +205,7 @@ export const TOOLS: ToolDef[] = [
     description:
       "List entities, optionally filtered by a sphere (center+radius), entity type ids, living-only, and whether to include players. Returns position, type, name, health and key flags for each.",
     inputSchema: {
-      center: z.object(vec3()).optional().describe("Center of the search sphere; omit to use the player's position."),
+      center: z.object(vec3()).optional().describe("Center of the search sphere; omit to use the position of the only player in that dimension (the world spawn when there is none or several; centerSource says which)."),
       radius: z.number().min(1).max(256).optional().default(32).describe("Search radius in blocks."),
       types: z.array(z.string()).optional().describe('Entity type ids to match, e.g. ["minecraft:zombie","minecraft:cow"].'),
       includePlayers: z.boolean().optional().default(true),
@@ -338,7 +338,7 @@ export const TOOLS: ToolDef[] = [
     method: "chat.send",
     title: "Send chat message",
     description:
-      "Send a chat message. On a client this is sent as the local player (a leading '/' runs a command as that player); on a dedicated server it is broadcast.",
+      "Send a chat message. On a client this is sent as the local player (a leading '/' runs a command as that player, and needs enableCommands); on a dedicated server it is broadcast.",
     inputSchema: { message: z.string() },
   },
   {
@@ -457,7 +457,7 @@ export const TOOLS: ToolDef[] = [
     method: "interact.breakBlock",
     title: "Break a block",
     description:
-      "Client-only. Break the block at a position. mode 'instant' uses creative-style instant break; 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks).",
+      "Client-only. Break the block at a position. mode 'instant' breaks it at once: in creative through the normal break packet; in survival only on an integrated server with world writes enabled (the server breaks it). 'broke' is what the integrated server reports (null on a remote server). 'survival' performs realistic timed mining (must be reachable, ~within 5 blocks); it stops by itself when the block cannot break and reports a mining_finished event (see poll_events).",
     inputSchema: { ...vec3(), mode: z.enum(["instant", "survival"]).optional().default("survival") },
     annotations: WRITE,
   },
@@ -466,7 +466,7 @@ export const TOOLS: ToolDef[] = [
     method: "interact.placeBlock",
     title: "Place held block",
     description:
-      "Client-only. Place the currently held block against the given position/face (must be reachable). Equip the desired block first with select_hotbar_slot.",
+      "Client-only. Place the currently held block against the given position/face. Out of reach, nothing is sent (result OUT_OF_REACH). 'result' is the client's prediction; 'placed' is what the integrated server did (null on a remote server). Equip the desired block first with select_hotbar_slot.",
     inputSchema: { ...vec3(), face: z.enum(["up", "down", "north", "south", "east", "west"]).optional().default("up") },
     annotations: WRITE,
   },
@@ -474,14 +474,14 @@ export const TOOLS: ToolDef[] = [
     name: "use_item",
     method: "interact.useItem",
     title: "Use item / right-click",
-    description: "Client-only. Perform a right-click use with the held item on whatever is under the crosshair (or in air).",
+    description: "Client-only. Perform a right-click with the held item like the use key does: on the entity or block under the crosshair first, then the item on its own (e.g. eat, throw). 'target' says which one acted (entity, block or air).",
     inputSchema: {},
   },
   {
     name: "attack_entity",
     method: "interact.attackEntity",
     title: "Attack entity",
-    description: "Client-only. Attack (left-click) an entity by UUID. Must be in reach.",
+    description: "Client-only. Attack (left-click) an entity by UUID. Out of reach, nothing is sent (result OUT_OF_REACH). With an integrated server, the answer reports what the server did: removed, and for living targets damaged and serverHealth.",
     inputSchema: { uuid: z.string() },
     annotations: WRITE,
   },
@@ -489,7 +489,7 @@ export const TOOLS: ToolDef[] = [
     name: "use_entity",
     method: "interact.useEntity",
     title: "Interact with entity",
-    description: "Client-only. Right-click/interact with an entity by UUID (e.g. trade with a villager, mount a horse).",
+    description: "Client-only. Right-click/interact with an entity by UUID (e.g. trade with a villager, mount a horse). Out of reach, nothing is sent (result OUT_OF_REACH); otherwise 'result' is the client's prediction.",
     inputSchema: { uuid: z.string() },
   },
   {

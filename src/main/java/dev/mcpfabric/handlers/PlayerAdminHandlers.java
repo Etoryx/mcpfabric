@@ -9,6 +9,7 @@ import dev.mcpfabric.bridge.MainThread;
 import dev.mcpfabric.bridge.RpcContext;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.handlers.support.CommandRunner;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -34,13 +35,15 @@ public final class PlayerAdminHandlers {
 		router.register("players.get", ctx -> onServer(server -> describe(require(server, ctx.getString("player")))));
 
 		router.register("players.teleport", ctx -> onServer(server -> {
+			Gates.commands();
 			ServerPlayer p = require(server, ctx.getString("player"));
 			String name = playerName(p);
 			double x = ctx.getDouble("x"), y = ctx.getDouble("y"), z = ctx.getDouble("z");
 			StringBuilder tp = new StringBuilder("teleport ").append(name).append(' ')
-					.append(x).append(' ').append(y).append(' ').append(z);
+					.append(CommandRunner.num(x)).append(' ').append(CommandRunner.num(y)).append(' ').append(CommandRunner.num(z));
 			if (ctx.has("yaw") && ctx.has("pitch")) {
-				tp.append(' ').append(ctx.getDouble("yaw")).append(' ').append(ctx.getDouble("pitch"));
+				tp.append(' ').append(CommandRunner.num(ctx.getDouble("yaw")))
+						.append(' ').append(CommandRunner.num(ctx.getDouble("pitch")));
 			}
 			String cmd = tp.toString();
 			if (ctx.has("dimension")) {
@@ -50,12 +53,14 @@ public final class PlayerAdminHandlers {
 		}));
 
 		router.register("players.setGameMode", ctx -> onServer(server -> {
+			Gates.commands();
 			ServerPlayer p = require(server, ctx.getString("player"));
 			String mode = ctx.getString("mode");
 			return CommandRunner.run(server, "gamemode " + mode + " " + playerName(p)).toJson();
 		}));
 
 		router.register("players.give", ctx -> onServer(server -> {
+			Gates.commands();
 			ServerPlayer p = require(server, ctx.getString("player"));
 			String item = ctx.getString("itemId") + ctx.optString("nbt", "");
 			int count = ctx.optInt("count", 1);
@@ -63,6 +68,7 @@ public final class PlayerAdminHandlers {
 		}));
 
 		router.register("players.applyEffect", ctx -> onServer(server -> {
+			Gates.commands();
 			ServerPlayer p = require(server, ctx.getString("player"));
 			String effect = ctx.getString("effectId");
 			int seconds = ctx.optInt("durationSeconds", 30);
@@ -74,6 +80,7 @@ public final class PlayerAdminHandlers {
 		}));
 
 		router.register("players.message", ctx -> onServer(server -> {
+			Gates.commands();
 			String target = ctx.getString("player");
 			String text = ctx.getString("text");
 			String selector;
@@ -89,6 +96,7 @@ public final class PlayerAdminHandlers {
 		}));
 
 		router.register("players.kick", ctx -> onServer(server -> {
+			Gates.commands();
 			ServerPlayer p = require(server, ctx.getString("player"));
 			String reason = ctx.optString("reason", null);
 			String cmd = "kick " + playerName(p) + (reason != null ? " " + reason : "");

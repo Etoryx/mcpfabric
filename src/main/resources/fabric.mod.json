@@ -17,10 +17,10 @@
 	"environment": "*",
 	"entrypoints": {
 		"main": [
-			"dev.mcpfabric.McpFabric"
+			"dev.mcpfabric.fabric.FabricEntrypoint"
 		],
 		"client": [
-			"dev.mcpfabric.client.McpFabricClient"
+			"dev.mcpfabric.client.fabric.FabricClientEntrypoint"
 		]
 	},
 	"depends": {

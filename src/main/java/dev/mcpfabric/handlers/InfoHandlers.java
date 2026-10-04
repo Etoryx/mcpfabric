@@ -5,8 +5,6 @@ import com.google.gson.JsonObject;
 import dev.mcpfabric.McpFabric;
 import dev.mcpfabric.ServerHolder;
 import dev.mcpfabric.bridge.RpcRouter;
-import net.fabricmc.api.EnvType;
-import net.fabricmc.loader.api.FabricLoader;
 import net.minecraft.server.MinecraftServer;
 
 /** Status / capability discovery handlers. */
@@ -15,15 +13,15 @@ public final class InfoHandlers {
 
 	public static void register(RpcRouter router) {
 		router.register("info.status", ctx -> {
-			EnvType env = FabricLoader.getInstance().getEnvironmentType();
-			boolean client = env == EnvType.CLIENT;
+			boolean client = McpFabric.platform().isClient();
 			MinecraftServer server = ServerHolder.get();
 			boolean serverPresent = server != null;
 
 			JsonObject o = new JsonObject();
 			o.addProperty("mod", "mcpfabric");
-			o.addProperty("modVersion", McpFabric.MOD_VERSION);
-			o.addProperty("minecraftVersion", McpFabric.MC_VERSION);
+			o.addProperty("modVersion", McpFabric.platform().modVersion());
+			o.addProperty("minecraftVersion", McpFabric.platform().minecraftVersion());
+			o.addProperty("loader", McpFabric.platform().loader());
 			o.addProperty("side", client ? "client" : "dedicated_server");
 			o.addProperty("serverPresent", serverPresent);
 			o.addProperty("integratedServer", client && serverPresent);
@@ -36,8 +34,7 @@ public final class InfoHandlers {
 		});
 
 		router.register("info.capabilities", ctx -> {
-			EnvType env = FabricLoader.getInstance().getEnvironmentType();
-			boolean client = env == EnvType.CLIENT;
+			boolean client = McpFabric.platform().isClient();
 			boolean serverPresent = ServerHolder.isPresent();
 
 			JsonObject groups = new JsonObject();
@@ -45,15 +42,18 @@ public final class InfoHandlers {
 			groups.addProperty("world_read", serverPresent);
 			groups.addProperty("world_write", serverPresent && McpFabric.config().enableWorldWrite);
 			groups.addProperty("entities", serverPresent);
-			groups.addProperty("players_admin", serverPresent);
+			groups.addProperty("players_admin", serverPresent && McpFabric.config().enableCommands);
 			groups.addProperty("command", serverPresent && McpFabric.config().enableCommands);
 			groups.addProperty("player_local", client);
 			groups.addProperty("control", client && McpFabric.config().enablePlayerControl);
 			groups.addProperty("interact", client && McpFabric.config().enablePlayerControl);
-			groups.addProperty("inventory", client);
+			groups.addProperty("inventory", client && McpFabric.config().enablePlayerControl);
 			groups.addProperty("chat", true);
 			groups.addProperty("vision", client && McpFabric.config().enableVision);
 			groups.addProperty("navigation", client && McpFabric.config().enablePlayerControl);
+			groups.addProperty("perception", client);
+			groups.addProperty("containers", client && McpFabric.config().enablePlayerControl);
+			groups.addProperty("recipes", client);
 			groups.addProperty("events", true);
 
 			JsonObject o = new JsonObject();
@@ -70,17 +70,22 @@ public final class InfoHandlers {
 		if (serverPresent) {
 			a.add("world_read");
 			a.add("entities");
-			a.add("players_admin");
 			if (McpFabric.config().enableWorldWrite) a.add("world_write");
-			if (McpFabric.config().enableCommands) a.add("command");
+			if (McpFabric.config().enableCommands) {
+				a.add("command");
+				a.add("players_admin");
+			}
 		}
 		if (client) {
 			a.add("player_local");
-			a.add("inventory");
+			a.add("perception");
+			a.add("recipes");
 			if (McpFabric.config().enablePlayerControl) {
+				a.add("inventory");
 				a.add("control");
 				a.add("interact");
 				a.add("navigation");
+				a.add("containers");
 			}
 			if (McpFabric.config().enableVision) a.add("vision");
 		}

@@ -2,6 +2,7 @@ package dev.mcpfabric.handlers.support;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import dev.mcpfabric.bridge.RpcException;
 import net.minecraft.commands.CommandResultCallback;
 import net.minecraft.commands.CommandSource;
 import net.minecraft.commands.CommandSourceStack;
@@ -11,6 +12,7 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.world.phys.Vec2;
 import net.minecraft.world.phys.Vec3;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -45,12 +47,27 @@ public final class CommandRunner {
 				4,
 				//?} else
 				/*net.minecraft.server.permissions.LevelBasedPermissionSet.OWNER,*/
+				// 26.3 dropped the separate text name and entity arguments from this constructor.
+				//? if <26.3 {
 				"mcpfabric",
 				Component.literal("mcpfabric"),
 				server,
 				null).withCallback(callback);
+				//?} else {
+				/*Component.literal("mcpfabric"),
+				server).withCallback(callback);
+				*///?}
 		server.getCommands().performPrefixedCommand(source, command);
 		return new Result(command, success[0], resultValue[0], capture.messages);
+	}
+
+	/**
+	 * A number as command text. {@code Double.toString} switches to scientific notation below 0.001 and
+	 * from 10 million ("1.0E-4"), which command arguments reject.
+	 */
+	public static String num(double value) throws RpcException {
+		if (!Double.isFinite(value)) throw RpcException.badRequest("Number must be finite, got " + value + ".");
+		return BigDecimal.valueOf(value).stripTrailingZeros().toPlainString();
 	}
 
 	public record Result(String command, boolean success, int resultValue, List<String> output) {

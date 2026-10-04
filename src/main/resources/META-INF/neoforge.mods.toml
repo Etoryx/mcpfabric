@@ -1,0 +1,27 @@
+modLoader = "javafml"
+loaderVersion = "[1,)"
+license = "MIT"
+issueTrackerURL = "https://github.com/Etoryx/mcpfabric/issues"
+
+[[mods]]
+modId = "mcpfabric"
+version = "${version}"
+displayName = "MCP Fabric"
+displayURL = "https://modrinth.com/mod/mcpfabric"
+${icon_property} = "assets/mcpfabric/icon.png"
+authors = "dabinayo"
+description = '''Exposes full read & control access to Minecraft through an embedded HTTP bridge, designed to be driven by an MCP server so AI agents can observe and control the game.'''
+
+[[dependencies.mcpfabric]]
+modId = "neoforge"
+type = "required"
+versionRange = "[${neoforge_version},)"
+ordering = "NONE"
+side = "BOTH"
+
+[[dependencies.mcpfabric]]
+modId = "minecraft"
+type = "required"
+versionRange = "${minecraft_dep}"
+ordering = "NONE"
+side = "BOTH"

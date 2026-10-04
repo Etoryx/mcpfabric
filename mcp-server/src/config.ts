@@ -15,6 +15,12 @@ export interface ServerConfig {
   transport: "stdio" | "http";
   /** Port for the streamable-HTTP transport (only used when transport === "http"). */
   httpPort: number;
+  /** Serve the agent runtime tools (memory, goals, map, jobs). */
+  agent: boolean;
+  /** Directory of the agent database (default ~/.mcpfabric). */
+  dataDir: string | undefined;
+  /** Fixed world id for agent memory instead of the one reported by the game. */
+  world: string | undefined;
 }
 
 function int(value: string | undefined, fallback: number): number {
@@ -38,5 +44,8 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): ServerConfig {
     timeoutMs: int(env.MCPFABRIC_TIMEOUT_MS, 15000),
     transport,
     httpPort: int(env.MCPFABRIC_HTTP_PORT, 25600),
+    agent: !/^(0|false|off|no)$/i.test(env.MCPFABRIC_AGENT ?? ""),
+    dataDir: env.MCPFABRIC_DATA_DIR || undefined,
+    world: env.MCPFABRIC_WORLD || undefined,
   };
 }

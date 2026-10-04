@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.HashSet;
+import java.util.Locale;
 import java.util.Set;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadFactory;
@@ -28,6 +29,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  * </ul>
  */
 public final class HttpBridgeServer {
+	/** Largest request body read; RPC calls are small JSON objects, NBT strings included. */
+	private static final int MAX_BODY_BYTES = 1 << 20;
+
 	private final McpConfig cfg;
 	private final RpcRouter router;
 	private final EventBus events;
@@ -79,7 +83,7 @@ public final class HttpBridgeServer {
 	}
 
 	private void handleInfo(HttpExchange ex) throws IOException {
-		if (!authorize(ex)) return;
+		if (fromBrowser(ex) || !authorize(ex)) return;
 		JsonObject env = router.dispatch("info.status", new JsonObject());
 		// Return just the result for convenience; fall back to the envelope on error.
 		Object result = env.has("result") ? env.get("result") : env;
@@ -91,9 +95,20 @@ public final class HttpBridgeServer {
 			respond(ex, 405, Json.GSON.toJson(Json.envelopeError("method_not_allowed", "Use POST.", null)));
 			return;
 		}
-		if (!authorize(ex)) return;
+		if (fromBrowser(ex) || !authorize(ex)) return;
+		// A page can send a cross-site text/plain POST without a CORS preflight; JSON cannot.
+		String type = ex.getRequestHeaders().getFirst("Content-Type");
+		if (type == null || !type.toLowerCase(Locale.ROOT).startsWith("application/json")) {
+			respond(ex, 415, Json.GSON.toJson(Json.envelopeError("unsupported_media_type", "Content-Type must be application/json.", null)));
+			return;
+		}
 
 		String body = readBody(ex);
+		if (body == null) {
+			respond(ex, 413, Json.GSON.toJson(Json.envelopeError("payload_too_large",
+					"Request body exceeds " + MAX_BODY_BYTES + " bytes.", null)));
+			return;
+		}
 		JsonObject req;
 		try {
 			req = Json.GSON.fromJson(body, JsonObject.class);
@@ -114,23 +129,30 @@ public final class HttpBridgeServer {
 	}
 
 	private void handleEvents(HttpExchange ex) throws IOException {
-		if (!authorize(ex)) return;
+		if (fromBrowser(ex) || !authorize(ex)) return;
 
 		Set<String> filter = parseTypeFilter(ex.getRequestURI().getQuery());
+		// Each stream holds a worker thread for as long as the client stays connected.
+		SseHub.Subscriber sub = sse.register(filter);
+		if (sub == null) {
+			respond(ex, 503, Json.GSON.toJson(Json.envelopeError("too_many_streams",
+					"At most " + SseHub.MAX_SUBSCRIBERS + " event streams may be open at once.", null)));
+			return;
+		}
 		ex.getResponseHeaders().set("Content-Type", "text/event-stream; charset=utf-8");
 		ex.getResponseHeaders().set("Cache-Control", "no-cache");
 		ex.getResponseHeaders().set("Connection", "keep-alive");
-		ex.sendResponseHeaders(200, 0); // 0 => streaming, connection stays open
-
-		SseHub.Subscriber sub = sse.register(filter);
-		try (OutputStream os = ex.getResponseBody()) {
-			writeSse(os, ": connected, lastEventId=" + events.lastId() + "\n\n");
-			while (true) {
-				String event = sub.poll(15000);
-				if (event == null) {
-					writeSse(os, ": keepalive\n\n"); // comment heartbeat
-				} else {
-					writeSse(os, "data: " + event + "\n\n");
+		try {
+			ex.sendResponseHeaders(200, 0); // 0 => streaming, connection stays open
+			try (OutputStream os = ex.getResponseBody()) {
+				writeSse(os, ": connected, lastEventId=" + events.lastId() + "\n\n");
+				while (true) {
+					String event = sub.poll(15000);
+					if (event == null) {
+						writeSse(os, ": keepalive\n\n"); // comment heartbeat
+					} else {
+						writeSse(os, "data: " + event + "\n\n");
+					}
 				}
 			}
 		} catch (IOException | InterruptedException closed) {
@@ -141,6 +163,18 @@ public final class HttpBridgeServer {
 	}
 
 	// --- helpers -----------------------------------------------------------------------------
+
+	/**
+	 * Refuses requests made by web pages. The bridge serves local MCP clients, which send no Origin;
+	 * a browser always sends one on a cross-site request, and binding to loopback does not keep a page
+	 * the user opens from reaching it.
+	 */
+	private static boolean fromBrowser(HttpExchange ex) throws IOException {
+		if (ex.getRequestHeaders().getFirst("Origin") == null) return false;
+		respond(ex, 403, Json.GSON.toJson(Json.envelopeError("forbidden",
+				"Requests from web pages (with an Origin header) are refused: the bridge is for local MCP clients.", null)));
+		return true;
+	}
 
 	private boolean authorize(HttpExchange ex) throws IOException {
 		if (!cfg.requireAuth || cfg.token == null || cfg.token.isBlank()) {
@@ -180,9 +214,17 @@ public final class HttpBridgeServer {
 		return filter;
 	}
 
+	/** The request body as text, or null when it is larger than {@link #MAX_BODY_BYTES}. */
 	private static String readBody(HttpExchange ex) throws IOException {
+		String declared = ex.getRequestHeaders().getFirst("Content-Length");
+		try {
+			if (declared != null && Long.parseLong(declared.trim()) > MAX_BODY_BYTES) return null;
+		} catch (NumberFormatException ignored) {
+			// no usable length: the read below still stops at the limit
+		}
 		try (InputStream is = ex.getRequestBody()) {
-			return new String(is.readAllBytes(), StandardCharsets.UTF_8);
+			byte[] bytes = is.readNBytes(MAX_BODY_BYTES + 1);
+			return bytes.length > MAX_BODY_BYTES ? null : new String(bytes, StandardCharsets.UTF_8);
 		}
 	}
 

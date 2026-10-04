@@ -3,6 +3,7 @@ package dev.mcpfabric.client.handlers;
 import dev.mcpfabric.bridge.Json;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
+import dev.mcpfabric.handlers.support.Gates;
 import dev.mcpfabric.client.ClientMc;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.client.player.LocalPlayer;
@@ -17,6 +18,7 @@ public final class InventoryHandlers {
 
 	public static void register(RpcRouter router) {
 		router.register("inventory.selectHotbar", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			int slot = ctx.getInt("slot");
 			if (slot < 0 || slot > 8) throw RpcException.badRequest("Hotbar slot must be 0-8.");
 			LocalPlayer p = ClientMc.player();
@@ -29,36 +31,41 @@ public final class InventoryHandlers {
 		}));
 
 		router.register("inventory.dropSlot", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			int menuSlot = toMenuSlot(ctx.getInt("slot"));
 			boolean whole = ctx.optBool("wholeStack", true);
-			containerClick(gm, p.inventoryMenu.containerId, menuSlot, whole ? 1 : 0, true, p);
+			containerClick(gm, p.inventoryMenu.containerId, menuSlot, whole ? 1 : 0, "throw", p);
 			return Json.ok("dropped slot");
 		}));
 
 		router.register("inventory.swapSlots", ctx -> ClientMc.call(() -> {
+			Gates.playerControl();
 			LocalPlayer p = ClientMc.player();
 			MultiPlayerGameMode gm = ClientMc.gameMode();
 			int a = toMenuSlot(ctx.getInt("slotA"));
 			int b = toMenuSlot(ctx.getInt("slotB"));
 			int id = p.inventoryMenu.containerId;
-			containerClick(gm, id, a, 0, false, p);
-			containerClick(gm, id, b, 0, false, p);
-			containerClick(gm, id, a, 0, false, p);
+			containerClick(gm, id, a, 0, "pickup", p);
+			containerClick(gm, id, b, 0, "pickup", p);
+			containerClick(gm, id, a, 0, "pickup", p);
 			return Json.ok("swapped");
 		}));
 	}
 
 	/**
-	 * Click a container slot. {@code handleInventoryMouseClick(..., ClickType, ...)} became
+	 * Click a slot of the open menu. {@code mode} is a click type name: {@code pickup},
+	 * {@code quick_move} (shift-click), {@code throw} or {@code swap}.
+	 * {@code handleInventoryMouseClick(..., ClickType, ...)} became
 	 * {@code handleContainerInput(..., ContainerInput, ...)} in 26.1 (same constant names).
 	 */
-	private static void containerClick(MultiPlayerGameMode gm, int containerId, int slot, int button, boolean throwItem, LocalPlayer p) {
+	static void containerClick(MultiPlayerGameMode gm, int containerId, int slot, int button, String mode, LocalPlayer p) {
+		String name = mode.toUpperCase(java.util.Locale.ROOT);
 		//? if <26.1 {
-		gm.handleInventoryMouseClick(containerId, slot, button, throwItem ? ClickType.THROW : ClickType.PICKUP, p);
+		gm.handleInventoryMouseClick(containerId, slot, button, ClickType.valueOf(name), p);
 		//?} else
-		/*gm.handleContainerInput(containerId, slot, button, throwItem ? net.minecraft.world.inventory.ContainerInput.THROW : net.minecraft.world.inventory.ContainerInput.PICKUP, p);*/
+		/*gm.handleContainerInput(containerId, slot, button, net.minecraft.world.inventory.ContainerInput.valueOf(name), p);*/
 	}
 
 	/**

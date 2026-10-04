@@ -1,0 +1,65 @@
+// === Modrinth publishing (minotaur) ===
+// Applied to every Stonecutter node (Fabric and NeoForge). The root `./gradlew publishFabric` /
+// `publishNeoForge` tasks fan the per-node `modrinth` task across that loader's nodes (the loaders are
+// released independently); each node uploads its own jar as a separate Modrinth version (e.g.
+// 0.2.0+1.21.8 for Fabric, 0.2.0+1.21.8-neoforge for NeoForge), targeting exactly the Minecraft
+// version(s) and loader it was built for.
+//
+// The public project is https://modrinth.com/mod/mcpfabric (`modrinth_id=eA63YgUh`).
+// Expose a write-scoped token as the MODRINTH_TOKEN env var (a GitHub Actions secret in CI).
+// Without MODRINTH_TOKEN the task runs in debug mode: it builds and validates but uploads nothing.
+
+// Pull the section for the current mod version out of CHANGELOG.md (Keep a Changelog format), so the
+// Modrinth version notes track the changelog automatically.
+def changelogForVersion = { String v ->
+	def file = rootProject.file('CHANGELOG.md')
+	if (!file.exists()) return ''
+	def text = file.text
+	int header = text.indexOf("## [${v}]")
+	if (header < 0) return "Release ${v} — see CHANGELOG.md for details."
+	int bodyStart = text.indexOf('\n', header)
+	if (bodyStart < 0) return ''
+	int next = text.indexOf('\n## [', bodyStart + 1)
+	if (next < 0) next = text.length()
+	return text.substring(bodyStart, next).trim()
+}
+
+// Each node ships its own Minecraft version; a node may declare extra API-compatible versions via
+// `extra_game_versions` (comma-separated) in versions/<node>/gradle.properties.
+def releaseGameVersions = [project.minecraft_version as String]
+if (project.hasProperty('extra_game_versions') && project.extra_game_versions?.trim()) {
+	releaseGameVersions += project.extra_game_versions.split(',')*.trim().findAll { it }
+}
+
+def modrinthToken = System.getenv('MODRINTH_TOKEN')
+def loader = project.modLoader as String
+boolean fabric = loader == 'fabric'
+// Modrinth version numbers are unique per project, so non-Fabric builds carry the loader suffix
+// (Fabric keeps the historical plain form).
+def modrinthVersion = fabric ? (version as String) : "${version}-${loader}" as String
+
+modrinth {
+	token.set(modrinthToken ?: '')
+	projectId.set(project.property('modrinth_id') as String)
+
+	versionNumber.set(modrinthVersion)                                    // unique per node
+	versionName.set("${project.archives_base_name} ${version}${fabric ? '' : ' (NeoForge)'}" as String)
+	versionType.set((project.findProperty('publish_type') ?: 'release') as String)
+
+	uploadFile.set(tasks.findByName('remapJar') ?: tasks.named('jar').get())
+
+	gameVersions.set(releaseGameVersions)
+	loaders.set([loader])
+	detectLoaders.set(false)
+
+	changelog.set(changelogForVersion(project.mod_version as String))
+
+	if (fabric) {
+		dependencies {
+			required.project('fabric-api')
+		}
+	}
+
+	// No token (e.g. a local run, or CI without the secret) -> do everything except the upload.
+	debugMode.set(modrinthToken == null || modrinthToken.isEmpty())
+}
