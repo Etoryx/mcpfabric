@@ -63,6 +63,22 @@ public final class RpcContext {
 		return vec3(key, getObject(key));
 	}
 
+	/** A required array of {@code {x, y, z}} objects (at most {@code max}), each as {x, y, z}. */
+	public List<double[]> getVec3List(String key, int max) throws RpcException {
+		require(key);
+		if (!params.get(key).isJsonArray()) throw RpcException.badRequest("Param '" + key + "' must be an array of {x,y,z} objects.");
+		JsonArray a = params.getAsJsonArray(key);
+		if (a.size() > max) throw RpcException.badRequest("Param '" + key + "' takes at most " + max + " positions.");
+		List<double[]> out = new ArrayList<>(a.size());
+		for (int i = 0; i < a.size(); i++) {
+			String item = key + "[" + i + "]";
+			JsonElement e = a.get(i);
+			if (e == null || !e.isJsonObject()) throw RpcException.badRequest("Param '" + item + "' must be an {x,y,z} object.");
+			out.add(vec3(item, e.getAsJsonObject()));
+		}
+		return out;
+	}
+
 	// --- optional ----------------------------------------------------------------------------
 
 	public String optString(String key, String def) throws RpcException {

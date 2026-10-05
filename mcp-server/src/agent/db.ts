@@ -113,6 +113,11 @@ const MIGRATIONS: string[] = [
   `,
 ];
 
+/** Throws when this Node build has no `node:sqlite`; touches no file. */
+export function requireSqlite(): void {
+  loadSqlite();
+}
+
 /** Open (creating if needed) the agent database and bring its schema up to date. */
 export function openDatabase(path: string): Database {
   if (path !== ":memory:") mkdirSync(dirname(path), { recursive: true });

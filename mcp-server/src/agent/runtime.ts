@@ -7,7 +7,7 @@ import { join } from "node:path";
 
 import { BridgeError } from "../bridge.js";
 import { Body, type Bridge, type ScanResult, type SelfState } from "./body.js";
-import { KeyValue, openDatabase, type Database } from "./db.js";
+import { KeyValue, openDatabase, requireSqlite, type Database } from "./db.js";
 import type { Located } from "./format.js";
 import { GoalStore } from "./goals.js";
 import { JobManager, type Job } from "./jobs.js";
@@ -29,24 +29,26 @@ export function defaultDbPath(env: NodeJS.ProcessEnv = process.env): string {
 
 const WORLD_TTL_MS = 15_000;
 
+interface Stores {
+  db: Database;
+  memory: MemoryStore;
+  goals: GoalStore;
+  map: WorldMap;
+  kv: KeyValue;
+}
+
 export class AgentRuntime {
-  readonly db: Database;
-  readonly memory: MemoryStore;
-  readonly goals: GoalStore;
-  readonly map: WorldMap;
-  readonly kv: KeyValue;
   readonly body: Body;
   readonly jobs: JobManager;
   private worldCache?: { id: string; at: number };
   /** The container the runtime opened last, so transfers can refresh its memory. */
   openContainer?: { pos: Located; blockId: string };
 
+  /** Opened on first use, so a server whose agent tools are never called writes no file. */
+  private stores?: Stores;
+
   constructor(bridge: Bridge, private readonly opts: RuntimeOptions) {
-    this.db = openDatabase(opts.dbPath);
-    this.memory = new MemoryStore(this.db);
-    this.goals = new GoalStore(this.db);
-    this.map = new WorldMap(this.db);
-    this.kv = new KeyValue(this.db);
+    requireSqlite();
     this.body = new Body(bridge);
     this.jobs = new JobManager(
       (job) => this.recordJob(job),
@@ -56,6 +58,30 @@ export class AgentRuntime {
         await this.body.stopBreaking().catch(() => undefined);
       },
     );
+  }
+
+  private open(): Stores {
+    if (!this.stores) {
+      const db = openDatabase(this.opts.dbPath);
+      this.stores = { db, memory: new MemoryStore(db), goals: new GoalStore(db), map: new WorldMap(db), kv: new KeyValue(db) };
+    }
+    return this.stores;
+  }
+
+  get db(): Database {
+    return this.open().db;
+  }
+  get memory(): MemoryStore {
+    return this.open().memory;
+  }
+  get goals(): GoalStore {
+    return this.open().goals;
+  }
+  get map(): WorldMap {
+    return this.open().map;
+  }
+  get kv(): KeyValue {
+    return this.open().kv;
   }
 
   /** Id of the world being played; all memory is scoped to it. */
@@ -116,6 +142,7 @@ export class AgentRuntime {
   }
 
   close(): void {
-    this.db.close();
+    this.stores?.db.close();
+    this.stores = undefined;
   }
 }

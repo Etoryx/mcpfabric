@@ -1,7 +1,6 @@
 package dev.mcpfabric.client.handlers;
 
 import com.google.gson.JsonArray;
-import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import dev.mcpfabric.bridge.RpcException;
 import dev.mcpfabric.bridge.RpcRouter;
@@ -98,15 +97,8 @@ public final class PerceptionHandlers {
 			LocalPlayer player = ClientMc.player();
 			boolean tool = ctx.optBool("tool", false);
 			JsonArray out = new JsonArray();
-			if (!ctx.params().has("positions") || !ctx.params().get("positions").isJsonArray()) {
-				throw RpcException.badRequest("Missing required param 'positions' (array of {x,y,z}).");
-			}
-			JsonArray positions = ctx.params().getAsJsonArray("positions");
-			if (positions.size() > 512) throw RpcException.badRequest("At most 512 positions per call.");
-			for (JsonElement e : positions) {
-				JsonObject p = e.getAsJsonObject();
-				BlockPos pos = BlockPos.containing(p.get("x").getAsDouble(), p.get("y").getAsDouble(), p.get("z").getAsDouble());
-				out.add(probe(level, player, pos, tool));
+			for (double[] p : ctx.getVec3List("positions", 512)) {
+				out.add(probe(level, player, BlockPos.containing(p[0], p[1], p[2]), tool));
 			}
 			JsonObject o = new JsonObject();
 			o.add("blocks", out);
