@@ -1,3 +1,8 @@
+> [!IMPORTANT]
+> **This repository has moved to [denfry/mcpfabric](https://github.com/denfry/mcpfabric).**
+> All development, releases, issues and pull requests continue there. This copy is no longer updated.
+> Downloads stay on [Modrinth](https://modrinth.com/mod/mcpfabric). Please open new issues and PRs in the new repository.
+
 <div align="center">
   <img src="docs/assets/mcpfabric-icon-512.png" alt="MCP Fabric grass block, AI network, and bridge emblem" width="180" height="180">
 
